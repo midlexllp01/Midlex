@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex w-72 bg-primary flex-col border-r border-white/5">
         <div className="p-6">
-          <Link href="/">
+          <Link href="/dashboard">
             <div className="inline-flex items-center justify-center rounded-2xl bg-white p-3">
               <img src="/logo.jpg" alt="Midlex LLP" className="h-12 w-auto object-contain" />
             </div>
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-primary flex flex-col border-r border-white/5"
             >
               <div className="p-6 flex items-center justify-between border-b border-white/10">
-                <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                   <div className="inline-flex items-center justify-center rounded-2xl bg-white p-2">
                     <img src="/logo.jpg" alt="Midlex LLP" className="h-10 w-auto object-contain" />
                   </div>
@@ -224,7 +224,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </svg>
             </button>
 
-            <Link href="/">
+            <Link href="/dashboard">
               <img src="/logo.jpg" alt="Midlex LLP" className="h-10 w-auto object-contain" />
             </Link>
           </motion.div>

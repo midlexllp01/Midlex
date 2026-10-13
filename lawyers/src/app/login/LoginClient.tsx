@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Scale } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -16,7 +17,8 @@ export default function LoginClient() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const { login } = useAuth();
+  const { user, login } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -25,6 +27,17 @@ export default function LoginClient() {
       apiFetch("/health").catch(() => {});
     } catch {}
   }, []);
+
+  // If already logged in, redirect straight to dashboard
+  useEffect(() => {
+    if (user) {
+      if (user.role === "ACCOUNTANT") {
+        router.replace("/dashboard/accountant");
+      } else {
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +54,12 @@ export default function LoginClient() {
         method: "POST",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
+
+      if (data.user?.role === "CLIENT") {
+        setError("Clients must log in through the main client portal.");
+        return;
+      }
+
       login(data.access_token, data.user);
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
@@ -86,16 +105,16 @@ export default function LoginClient() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white rounded-3xl sm:rounded-[32px] shadow-2xl p-6 sm:p-10 relative z-10 border border-gray-100 max-w-full"
       >
-        <div className="flex flex-col items-center mb-6 sm:mb-10 text-center">
-          <Link href="/" className="mb-4 sm:mb-6">
+        <div className="flex flex-col items-center mb-6 sm:mb-8 text-center">
+          <div className="mb-4 sm:mb-6">
             <img src="/logo.jpg" alt="Midlex LLP" className="h-20 sm:h-28 w-auto object-contain" />
-          </Link>
-          <span className="px-3.5 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-3">
-            Client & User Portal Sign In
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+            <Scale size={14} /> Lawyer Portal
           </span>
-          <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">Welcome Back</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">Lawyers Login</h1>
           <p className="text-gray-500 text-center text-xs sm:text-sm max-w-xs">
-            Sign in with your registered Client, Lawyer, or Admin credentials to access your portal.
+            Sign in with your legal counsel credentials to access your lawyer workspace.
           </p>
         </div>
 
@@ -105,8 +124,9 @@ export default function LoginClient() {
               {error}
             </div>
           )}
+
           <div>
-            <label className="block text-sm font-bold text-primary mb-2">Email Address</label>
+            <label className="block text-sm font-bold text-primary mb-2">Lawyer Email Address</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
               <input
@@ -115,7 +135,7 @@ export default function LoginClient() {
                 onChange={(e) => setEmail(e.target.value)}
                 style={{ color: "#000000", WebkitTextFillColor: "#000000", backgroundColor: "#ffffff" }}
                 className="w-full bg-white border-2 border-slate-400 text-slate-900 font-bold rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-gray-400"
-                placeholder="name@example.com"
+                placeholder="lawyer@midlex.com"
                 required
               />
             </div>
@@ -162,7 +182,7 @@ export default function LoginClient() {
             disabled={isSubmitting}
             className="w-full bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20 disabled:opacity-50"
           >
-            {isSubmitting ? "Signing In..." : "Sign In"} <ArrowRight size={20} />
+            {isSubmitting ? "Signing In..." : "Lawyers Sign In"} <ArrowRight size={20} />
           </motion.button>
 
           {isWakingUp && (
@@ -172,11 +192,8 @@ export default function LoginClient() {
           )}
         </form>
 
-        <div className="mt-8 text-center text-gray-600">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-secondary font-bold hover:underline">
-            Create one
-          </Link>
+        <div className="mt-8 text-center text-xs text-gray-400">
+          Authorized legal counsel only. Protected by Midlex Security Systems.
         </div>
       </motion.div>
     </main>

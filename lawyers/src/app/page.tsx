@@ -1,7 +1,5 @@
-"use client";
-
-import LoginClient from "./login/LoginClient";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <LoginClient />;
+  redirect("/login");
 }

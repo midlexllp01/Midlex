@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 
-type ClientPracticeDept = "LITIGATION" | "GENERAL";
 type LoginUser = {
   id: string;
   email: string;
@@ -18,34 +18,34 @@ type LoginUser = {
 };
 
 export default function LoginClient() {
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const [clientDepartment, setClientDepartment] = useState<ClientPracticeDept | null>(null);
-  const { login } = useAuth();
-
-  const completeLogin = (token: string, user: LoginUser) => {
-    if (user.role === "CLIENT") {
-      if (!clientDepartment) {
-        setError("Choose Litigation or General & Property before signing in.");
-        return false;
-      }
-      localStorage.setItem("midlex_client_dept", clientDepartment);
-    }
-
-    login(token, user);
-    return true;
-  };
+  const { user, login } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
     // Ping backend immediately when visiting the login page
     try {
       apiFetch("/health").catch(() => {});
     } catch {}
   }, []);
+
+  // If already logged in, redirect straight to dashboard
+  useEffect(() => {
+    if (user) {
+      if (user.role === "ACCOUNTANT") {
+        router.replace("/dashboard/accountant");
+      } else {
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,13 @@ export default function LoginClient() {
         method: "POST",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
-      if (!completeLogin(data.access_token, data.user)) return;
+
+      if (data.user?.role === "CLIENT") {
+        setError("Clients must log in through the main client portal.");
+        return;
+      }
+
+      login(data.access_token, data.user);
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
     } finally {
@@ -71,6 +77,12 @@ export default function LoginClient() {
       setIsWakingUp(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <main suppressHydrationWarning className="min-h-screen bg-[#fafafa] flex items-center justify-center p-3 sm:p-6 py-6 sm:py-12 w-full max-w-full overflow-x-hidden relative" />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#fafafa] flex items-center justify-center p-3 sm:p-6 py-6 sm:py-12 w-full max-w-full overflow-x-hidden relative">
@@ -101,16 +113,16 @@ export default function LoginClient() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white rounded-3xl sm:rounded-[32px] shadow-2xl p-6 sm:p-10 relative z-10 border border-gray-100 max-w-full"
       >
-        <div className="flex flex-col items-center mb-6 sm:mb-10 text-center">
-          <Link href="/" className="mb-4 sm:mb-6">
+        <div className="flex flex-col items-center mb-6 sm:mb-8 text-center">
+          <div className="mb-4 sm:mb-6">
             <img src="/logo.jpg" alt="Midlex LLP" className="h-20 sm:h-28 w-auto object-contain" />
-          </Link>
-          <span className="px-3.5 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-3">
-            Client & User Portal Sign In
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+            <ShieldCheck size={14} /> Admin Portal
           </span>
-          <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">Welcome Back</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">Admin Login</h1>
           <p className="text-gray-500 text-center text-xs sm:text-sm max-w-xs">
-            Sign in with your registered Client, Lawyer, or Admin credentials to access your portal.
+            Sign in with your administrative credentials to access the Midlex Admin Portal.
           </p>
         </div>
 
@@ -120,42 +132,9 @@ export default function LoginClient() {
               {error}
             </div>
           )}
+
           <div>
-            <label className="block text-sm font-bold text-primary mb-2">Client Workspace</label>
-            <p className="text-xs text-gray-500 mb-3">
-              Clients must choose a workspace when signing in. Sign out to change it later.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setClientDepartment("LITIGATION")}
-                aria-pressed={clientDepartment === "LITIGATION"}
-                className={`rounded-2xl border-2 px-3 py-4 text-left transition-all ${
-                  clientDepartment === "LITIGATION"
-                    ? "border-primary bg-primary text-white"
-                    : "border-gray-200 bg-white text-primary hover:border-primary/50"
-                }`}
-              >
-                <span className="block text-lg">⚖️</span>
-                <span className="block text-xs font-black mt-1">Litigation</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setClientDepartment("GENERAL")}
-                aria-pressed={clientDepartment === "GENERAL"}
-                className={`rounded-2xl border-2 px-3 py-4 text-left transition-all ${
-                  clientDepartment === "GENERAL"
-                    ? "border-secondary bg-amber-950 text-white"
-                    : "border-gray-200 bg-white text-primary hover:border-secondary/50"
-                }`}
-              >
-                <span className="block text-lg">🏢</span>
-                <span className="block text-xs font-black mt-1">General &amp; Property</span>
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-primary mb-2">Email Address</label>
+            <label className="block text-sm font-bold text-primary mb-2">Admin Email Address</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
               <input
@@ -164,7 +143,7 @@ export default function LoginClient() {
                 onChange={(e) => setEmail(e.target.value)}
                 style={{ color: "#000000", WebkitTextFillColor: "#000000", backgroundColor: "#ffffff" }}
                 className="w-full bg-white border-2 border-slate-400 text-slate-900 font-bold rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-gray-400"
-                placeholder="name@example.com"
+                placeholder="admin@midlex.com"
                 required
               />
             </div>
@@ -211,7 +190,7 @@ export default function LoginClient() {
             disabled={isSubmitting}
             className="w-full bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20 disabled:opacity-50"
           >
-            {isSubmitting ? "Signing In..." : "Sign In"} <ArrowRight size={20} />
+            {isSubmitting ? "Signing In..." : "Admin Sign In"} <ArrowRight size={20} />
           </motion.button>
 
           {isWakingUp && (
@@ -221,11 +200,8 @@ export default function LoginClient() {
           )}
         </form>
 
-        <div className="mt-8 text-center text-gray-600">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-secondary font-bold hover:underline">
-            Create one
-          </Link>
+        <div className="mt-8 text-center text-xs text-gray-400">
+          Authorized personnel only. Protected by Midlex Security Systems.
         </div>
       </motion.div>
     </main>

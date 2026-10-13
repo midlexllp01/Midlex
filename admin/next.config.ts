@@ -15,6 +15,46 @@ const nextConfig: NextConfig = {
     "0.0.0.0",
     "0.0.0.0:3000",
   ],
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/about",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/contact",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/book-consultation",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/team",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/practice-areas/:path*",
+        destination: "/login",
+        permanent: false,
+      },
+      {
+        source: "/insights/:path*",
+        destination: "/login",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
+
