@@ -1,6 +1,6 @@
 # 🛡️ Midlex Admin Portal
 
-Live Deployment: [https://admin.midlex-llp-lawfirm.vercel.app](https://admin.midlex-llp-lawfirm.vercel.app)  
+Live Deployment: [https://admin-midlex-llp-lawfirm.vercel.app](https://admin-midlex-llp-lawfirm.vercel.app)  
 Backend API: [https://midlex-new.onrender.com](https://midlex-new.onrender.com)
 
 ## 🔑 Admin Credentials

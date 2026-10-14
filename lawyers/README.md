@@ -1,6 +1,6 @@
 # ⚖️ Midlex Lawyers Portal
 
-Live Deployment: [https://lawyer.midlex-llp-lawfirm.vercel.app](https://lawyer.midlex-llp-lawfirm.vercel.app)  
+Live Deployment: [https://lawyer-midlex-llp-lawfirm.vercel.app](https://lawyer-midlex-llp-lawfirm.vercel.app)  
 Backend API: [https://midlex-new.onrender.com](https://midlex-new.onrender.com)
 
 ## 🔑 Lawyer Credentials (Assigned Legal Team)
