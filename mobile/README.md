@@ -1,17 +1,34 @@
-# mobile
+# 📱 Midlex Mobile App (Flutter)
 
-A new Flutter project.
+A cross-platform legal portal application for clients of Midlex LLP.
 
-## Getting Started
+## ⚙️ Backend API
+- **Live Endpoint**: `https://midlex-new.onrender.com`
+- **Configuration**: Defined in `lib/config/api_config.dart`
+- **Release APK**: `build/app/outputs/flutter-apk/app-release.apk` (and `Midlex_LawFirm_New.apk`)
 
-This project is a starting point for a Flutter application.
+## 🔑 Test Client Logins
+- **Demo Client**:
+  - **Email**: `client@midlex.com`
+  - **Password**: `client123`
+  - **Name**: Demo Client (John Doe)
+  - **Role**: `CLIENT`
+  - **Phone**: `08033334444`
 
-A few resources to get you started if this is your first Flutter project:
+- **Standard User**:
+  - **Email**: `user@midlex.com`
+  - **Password**: `user123`
+  - **Name**: Standard User (Jane Doe)
+  - **Role**: `CLIENT`
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+> Note: The mobile app is designed specifically for clients. Admin and Lawyer accounts will be prompted to access their designated web portals.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🚀 Building & Running
+```bash
+flutter pub get
+flutter run
+# Build Release APK
+flutter build apk --release
+# Build Release Web
+flutter build web --release
+```

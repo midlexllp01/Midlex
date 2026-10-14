@@ -23,7 +23,20 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository powering the Midlex Legal Management Platform.
+
+- **Live Render Service**: [https://midlex-new.onrender.com](https://midlex-new.onrender.com)
+- **Health Check**: `GET /health`
+
+## 🔑 Default Test Credentials & Roles
+| Role | Email | Password | Name | Litigation Team |
+|---|---|---|---|---|
+| `ADMIN` | `midlexllp01@gmail.com` | `Admin@123` | Super Admin | System Admin |
+| `LAWYER` | `lawyer1@midlex.com` | `admin123` | Barr. Adebayo | `TEAM ANCHOR` |
+| `LAWYER` | `samson@midlex.com` | `samson123` | Samson Sabbat | `TEAM ANCHOR` |
+| `CLIENT` | `client@midlex.com` | `client123` | Demo Client (John Doe) | Client |
+| `CLIENT` | `user@midlex.com` | `user123` | Standard User (Jane Doe) | Client |
+| `ACCOUNTANT` | `accountant@midlex.com` | `accountant123` | Chief Accountant | Finance |
 
 ## Project setup
 

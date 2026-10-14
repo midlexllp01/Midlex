@@ -1,4 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ⚖️ Midlex Lawyers Portal
+
+Live Deployment: [https://lawyer.midlex-llp-lawfirm.vercel.app](https://lawyer.midlex-llp-lawfirm.vercel.app)  
+Backend API: [https://midlex-new.onrender.com](https://midlex-new.onrender.com)
+
+## 🔑 Lawyer Credentials (Assigned Legal Team)
+- **Senior Lawyer**:
+  - **Email**: `lawyer1@midlex.com`
+  - **Password**: `admin123`
+  - **Name**: Barr. Adebayo
+  - **Legal / Litigation Team**: `TEAM ANCHOR`
+  - **Role**: `LAWYER`
+
+- **Lawyer (Alt)**:
+  - **Email**: `samson@midlex.com`
+  - **Password**: `samson123` *(or `admin123`)*
+  - **Name**: Samson Sabbat
+  - **Legal / Litigation Team**: `TEAM ANCHOR`
+  - **Role**: `LAWYER`
+
+---
 
 ## Getting Started
 
