@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../models/case_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../services/directory_service.dart';
 

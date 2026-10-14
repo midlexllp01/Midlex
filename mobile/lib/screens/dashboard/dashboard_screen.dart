@@ -649,6 +649,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Directory View for Clients, Lawyers, or Admins
+  // ignore: unused_element
   Widget _buildUserDirectoryView(String roleType) {
     return _UserDirectoryListWidget(roleType: roleType);
   }

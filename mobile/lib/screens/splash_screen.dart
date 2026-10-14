@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
+import '../config/api_config.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'auth/login_screen.dart';
 import 'dashboard/dashboard_screen.dart';
@@ -23,6 +25,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    // Warm up backend on Render so it wakes up if idle
+    ApiService.get(ApiConfig.health).catchError((_) => null);
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
