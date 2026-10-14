@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light !important;
+  --background: #ffffff;
+  --foreground: #1a2e1a;
+  --primary: #1b4d2e; /* Midlex Dark Green */
+  --primary-foreground: #ffffff;
+  --secondary: #c5a059; /* Midlex Gold/Tan */
+  --secondary-foreground: #1a2e1a;
+  --accent: #f4f7f4;
+  --accent-foreground: #1b4d2e;
+  --muted: #f4f7f4;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+*, *:before, *:after {
+  box-sizing: border-box;
+}
+
+html, body {
+  color-scheme: light !important;
+  scroll-behavior: smooth;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+/* Fix mobile Safari & Chrome auto-zooming on inputs */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Forced 100% solid pitch black text for all inputs & forms across all devices, themes & dark modes */
+html body input,
+html body select,
+html body textarea,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="search"],
+input[type="number"] {
+  color-scheme: light !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+  caret-color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+/* Placeholder text color */
+input::placeholder,
+textarea::placeholder {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+}
+
+/* Chrome / Safari / Edge / Mobile Webkit Autofill Overrides */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  color: #000000 !important;
+  caret-color: #000000 !important;
+}
+
+::selection {
+  background-color: var(--secondary);
+  color: white;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}

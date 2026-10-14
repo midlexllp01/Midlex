@@ -60,6 +60,7 @@ Midlex-LLP/
 - 🌐 **Client & Marketing Web**: [https://midlex-llp-lawfirm.vercel.app](https://midlex-llp-lawfirm.vercel.app)
 - 🛡️ **Admin Portal**: [https://admin-midlex-llp-lawfirm.vercel.app](https://admin-midlex-llp-lawfirm.vercel.app)
 - ⚖️ **Lawyer Portal**: [https://lawyer-midlex-llp-lawfirm.vercel.app](https://lawyer-midlex-llp-lawfirm.vercel.app)
+- 💼 **Payment & Finance Portal**: [https://payment-portal-midlex-llp-lawfirm.vercel.app](https://payment-portal-midlex-llp-lawfirm.vercel.app)
 - ⚙️ **Backend API (Render)**: [https://midlex-new.onrender.com](https://midlex-new.onrender.com)
 - 📱 **Android Release APK**: `build/app/outputs/flutter-apk/app-release.apk` (and `Midlex_LawFirm_New.apk`)
 - 🏢 **Ecosystem Micro-Portals**:
@@ -81,7 +82,7 @@ Use these verified default test credentials to test the various role portals and
 | **Lawyer (Alt)** | Samson Sabbat | `samson@midlex.com` | `samson123` *(or `admin123`)* | [Lawyer Portal](https://lawyer-midlex-llp-lawfirm.vercel.app) | **TEAM ANCHOR** (Litigation Team) |
 | **Client / User** | Demo Client (John Doe) | `client@midlex.com` | `client123` | [Client Web](https://midlex-llp-lawfirm.vercel.app) / Mobile App | Case Consultation Client |
 | **Client (Alt)** | Standard User (Jane Doe) | `user@midlex.com` | `user123` | [Client Web](https://midlex-llp-lawfirm.vercel.app) / Mobile App | Case Consultation Client |
-| **Finance / Accountant** | Chief Accountant | `accountant@midlex.com` | `accountant123` | [Admin Portal](https://admin-midlex-llp-lawfirm.vercel.app) | Finance & Payment Verification |
+| **Finance / Accountant** | Chief Accountant | `accountant@midlex.com` | `accountant123` | [Finance & Payment Portal](https://payment-portal-midlex-llp-lawfirm.vercel.app) | Invoicing & Payment Verification |
 
 > **Note on Fail-Safe Authentication:**
 > The backend authentication service automatically recognizes and auto-syncs these default credentials if the database is reset or running in fresh/cold-start environments. Lawyers default to litigation team **`TEAM ANCHOR`**.
