@@ -10,8 +10,8 @@ import { apiFetch } from "@/lib/api";
 
 export default function LoginClient() {
   const [mounted, setMounted] = useState(false);
-  const [email, setEmail] = useState("accountant@midlex.com");
-  const [password, setPassword] = useState("accountant123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,18 +65,6 @@ export default function LoginClient() {
     }
   };
 
-  const fillAccountantCreds = () => {
-    setEmail("accountant@midlex.com");
-    setPassword("accountant123");
-    setError("");
-  };
-
-  const fillAdminCreds = () => {
-    setEmail("midlexllp01@gmail.com");
-    setPassword("Admin@123");
-    setError("");
-  };
-
   if (!mounted) {
     return (
       <main className="min-h-screen bg-[#fafafa] flex items-center justify-center p-3 sm:p-6 py-6 sm:py-12 w-full max-w-full overflow-x-hidden relative" />
@@ -108,31 +96,6 @@ export default function LoginClient() {
           </p>
         </div>
 
-        {/* Quick Fill Pills */}
-        <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-slate-600 font-semibold px-1">
-            <span>Quick Test Accounts:</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={fillAccountantCreds}
-              className="px-3 py-2 text-xs font-bold rounded-xl bg-white border border-slate-300 text-slate-800 hover:bg-emerald-50 hover:border-emerald-400 transition-all text-left flex flex-col"
-            >
-              <span className="text-emerald-700">💼 Chief Accountant</span>
-              <span className="text-[10px] text-slate-500 font-normal">accountant@midlex.com</span>
-            </button>
-            <button
-              type="button"
-              onClick={fillAdminCreds}
-              className="px-3 py-2 text-xs font-bold rounded-xl bg-white border border-slate-300 text-slate-800 hover:bg-blue-50 hover:border-blue-400 transition-all text-left flex flex-col"
-            >
-              <span className="text-blue-700">🛡️ Super Admin</span>
-              <span className="text-[10px] text-slate-500 font-normal">midlexllp01@gmail.com</span>
-            </button>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100">
@@ -148,8 +111,9 @@ export default function LoginClient() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="off"
                 className="w-full bg-white border-2 border-slate-300 text-slate-900 font-bold rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition-all placeholder:text-gray-400"
-                placeholder="accountant@midlex.com"
+                placeholder="finance@midlex.com"
                 required
               />
             </div>
@@ -163,8 +127,9 @@ export default function LoginClient() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="off"
                 className="w-full bg-white border-2 border-slate-300 text-slate-900 font-bold rounded-2xl py-3.5 pl-12 pr-12 focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition-all placeholder:text-gray-400"
-                placeholder="••••••••"
+                placeholder="Enter password"
                 required
               />
               <button

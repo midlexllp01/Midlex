@@ -604,7 +604,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    final shareUrl = 'https://midlex-llplawfirm.vercel.app/share/case/${widget.caseModel.id}';
+                    final shareUrl = 'https://midlex-llp-lawfirm.vercel.app/share/case/${widget.caseModel.id}';
                     Clipboard.setData(ClipboardData(text: shareUrl));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -670,7 +670,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      final shareUrl = 'https://midlex-llplawfirm.vercel.app/share/case/${widget.caseModel.id}';
+                      final shareUrl = 'https://midlex-llp-lawfirm.vercel.app/share/case/${widget.caseModel.id}';
                       Clipboard.setData(ClipboardData(text: shareUrl));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
