@@ -17,7 +17,7 @@ export default function LoginClient() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -35,16 +35,20 @@ export default function LoginClient() {
     return () => clearTimeout(clearTimer);
   }, []);
 
-  // If already logged in, redirect straight to dashboard
+  // If already logged in, redirect straight to dashboard (only for staff roles)
   useEffect(() => {
     if (user) {
+      if (user.role === "CLIENT") {
+        logout();
+        return;
+      }
       if (user.role === "ACCOUNTANT") {
         router.replace("/dashboard/accountant");
-      } else {
+      } else if (user.role === "LAWYER" || user.role === "ADMIN") {
         router.replace("/dashboard");
       }
     }
-  }, [user, router]);
+  }, [user, router, logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

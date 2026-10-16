@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import RemindersBar from '@/components/Dashboard/RemindersBar';
 import NotificationBell from '@/components/Dashboard/NotificationBell';
@@ -44,22 +44,30 @@ const sidebarItems = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (user.role === 'CLIENT') {
+        logout();
+        router.replace('/login');
+      }
+    }
+  }, [user, isLoading, router, logout]);
+
+  if (isLoading || !user || user.role === 'CLIENT') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
         <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const items = sidebarItems[user.role as keyof typeof sidebarItems] || sidebarItems.CLIENT;

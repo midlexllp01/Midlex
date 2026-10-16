@@ -175,7 +175,14 @@ export default function NotificationBell() {
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-bold text-primary truncate">{item.title}</p>
                           <span className="text-[11px] text-gray-400 whitespace-nowrap">
-                            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                            {(() => {
+                              try {
+                                const d = new Date(item.createdAt);
+                                return isNaN(d.getTime()) ? '' : formatDistanceToNow(d, { addSuffix: true });
+                              } catch {
+                                return '';
+                              }
+                            })()}
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-gray-600 line-clamp-2">{item.message}</p>

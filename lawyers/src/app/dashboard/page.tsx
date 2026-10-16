@@ -50,7 +50,7 @@ export default function DashboardPage() {
           Dashboard
         </p>
         <h2 className="mt-4 text-3xl font-bold text-primary">
-          Welcome back, {user.name.split(' ')[0]}.
+          Welcome back, {(user.name || 'Counsel').split(' ')[0]}.
         </h2>
         <p className="mt-3 max-w-2xl text-base text-gray-500">
           {copy.title}. {copy.description}
