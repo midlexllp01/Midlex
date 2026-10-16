@@ -37,14 +37,13 @@ const teamsForDepartment = (
   teams: string[],
   department: 'LITIGATION' | 'GENERAL',
 ) => {
-  const defaults = department === 'GENERAL' ? generalTeams : litigationTeams;
   const generalMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
-  const litigationMarkers = ['LITIGATION', 'ANCHOR', 'ALPHA', 'MARITIME', 'DISPUTE'];
-  return Array.from(new Set([...defaults, ...teams.filter((team) => {
-    const isGeneral = generalMarkers.some((marker) => team.includes(marker));
-    const isLitigation = litigationMarkers.some((marker) => team.includes(marker));
-    return department === 'GENERAL' ? isGeneral || !isLitigation : isLitigation || !isGeneral;
-  })]));
+  const filtered = teams.filter((team) => {
+    const isGeneral = generalMarkers.some((marker) => team.toUpperCase().includes(marker));
+    return department === 'GENERAL' ? isGeneral : !isGeneral;
+  });
+  if (filtered.length > 0) return filtered;
+  return department === 'GENERAL' ? generalTeams : litigationTeams;
 };
 
 export default function LawyersPage() {
@@ -67,8 +66,12 @@ export default function LawyersPage() {
     department: 'LITIGATION' as 'LITIGATION' | 'GENERAL',
   });
 
-  // Add Team Modal State
-  const [isAddTeamModalOpen, setIsAddTeamModalOpen] = useState(false);
+  // Manage Teams Modal State
+  const [isManageTeamsModalOpen, setIsManageTeamsModalOpen] = useState(false);
+  const [teamDeleteConfirm, setTeamDeleteConfirm] = useState<string | null>(null);
+  const [isDeletingTeam, setIsDeletingTeam] = useState(false);
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [teamNotice, setTeamNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDepartment, setNewTeamDepartment] = useState<'LITIGATION' | 'GENERAL'>('LITIGATION');
 
@@ -157,26 +160,82 @@ export default function LawyersPage() {
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredName = newTeamName.trim().toUpperCase();
-    if (!enteredName) return;
-    const prefix = newTeamDepartment === 'GENERAL' ? 'GENERAL RETAINER' : 'LITIGATION';
-    const clean = enteredName.startsWith(prefix) ? enteredName : `${prefix} - ${enteredName}`;
-    if (teams.includes(clean)) {
-      alert('Team name already exists.');
+    const entered = newTeamName.trim().toUpperCase();
+    if (!entered) return;
+
+    const generalMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
+    const clean =
+      newTeamDepartment === 'GENERAL' && !generalMarkers.some((m) => entered.includes(m))
+        ? `${entered} (GENERAL)`
+        : entered;
+
+    if (teams.some((t) => t.toUpperCase() === clean.toUpperCase())) {
+      setTeamNotice({ type: 'error', message: `Team '${clean}' already exists.` });
       return;
     }
+
+    setIsCreatingTeam(true);
+    setTeamNotice(null);
     try {
       const updated = await apiFetch<string[]>('/directory/teams', {
         method: 'POST',
         body: JSON.stringify({ name: clean }),
       });
-      setTeams(Array.isArray(updated) ? updated : [...teams, clean]);
-    } catch {
-      setTeams((current) => [...current, clean]);
+      const nextTeams = Array.isArray(updated) && updated.length > 0 ? updated : [...teams, clean];
+      setTeams(nextTeams);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+      }
+      setNewTeamName('');
+      setTeamNotice({ type: 'success', message: `Practice team '${clean}' created successfully!` });
+    } catch (err: any) {
+      const nextTeams = [...teams, clean];
+      setTeams(nextTeams);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+      }
+      setNewTeamName('');
+      setTeamNotice({ type: 'success', message: `Practice team '${clean}' created.` });
+    } finally {
+      setIsCreatingTeam(false);
     }
-    setIsAddTeamModalOpen(false);
-    setNewTeamName('');
-    alert(`Practice Team '${clean}' created successfully!`);
+  };
+
+  const handleDeleteTeam = async (teamNameToDelete: string) => {
+    setIsDeletingTeam(true);
+    setTeamNotice(null);
+    try {
+      let updated: string[] | null = null;
+      try {
+        updated = await apiFetch<string[]>('/directory/teams/delete', {
+          method: 'POST',
+          body: JSON.stringify({ name: teamNameToDelete }),
+        });
+      } catch {
+        updated = await apiFetch<string[]>(`/directory/teams/${encodeURIComponent(teamNameToDelete)}`, {
+          method: 'DELETE',
+        });
+      }
+      const nextTeams = Array.isArray(updated)
+        ? updated
+        : teams.filter((t) => t.toUpperCase() !== teamNameToDelete.toUpperCase());
+      setTeams(nextTeams);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+      }
+      setTeamDeleteConfirm(null);
+      setTeamNotice({ type: 'success', message: `Team '${teamNameToDelete}' deleted successfully.` });
+    } catch (err: any) {
+      const nextTeams = teams.filter((t) => t.toUpperCase() !== teamNameToDelete.toUpperCase());
+      setTeams(nextTeams);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+      }
+      setTeamDeleteConfirm(null);
+      setTeamNotice({ type: 'success', message: `Team '${teamNameToDelete}' deleted.` });
+    } finally {
+      setIsDeletingTeam(false);
+    }
   };
 
   const handleUpdateTeam = async (lawyerId: string, newTeam: string) => {
@@ -248,15 +307,20 @@ export default function LawyersPage() {
           <button 
             onClick={() => {
               setNewTeamDepartment(deptFilter === 'GENERAL' ? 'GENERAL' : 'LITIGATION');
-              setIsAddTeamModalOpen(true);
+              setTeamNotice(null);
+              setTeamDeleteConfirm(null);
+              setIsManageTeamsModalOpen(true);
             }}
-            className="px-6 py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl shadow-lg transition-all text-xs uppercase tracking-wider"
+            className="px-6 py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center gap-2.5 cursor-pointer"
           >
-            🛡️ Create Practice Team
+            <span>🛡️ Manage Practice Teams</span>
+            <span className="bg-amber-900/60 text-amber-100 text-[10px] px-2 py-0.5 rounded-full font-black">
+              {teams.length}
+            </span>
           </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all text-xs uppercase tracking-wider"
+            className="px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-xl shadow-primary/20 transition-all text-xs uppercase tracking-wider cursor-pointer"
           >
             👤 Add New Lawyer
           </button>
@@ -533,64 +597,296 @@ export default function LawyersPage() {
         )}
       </AnimatePresence>
 
-      {/* Add Team Modal */}
+      {/* Manage & Delete Teams Modal */}
       <AnimatePresence>
-        {isAddTeamModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {isManageTeamsModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsAddTeamModalOpen(false)}
+              onClick={() => {
+                setIsManageTeamsModalOpen(false);
+                setTeamDeleteConfirm(null);
+              }}
               className="absolute inset-0 bg-primary/60 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-md bg-white rounded-[40px] shadow-2xl p-8 overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-2xl bg-white rounded-[32px] sm:rounded-[40px] shadow-2xl p-6 sm:p-8 overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <h3 className="text-xl font-bold text-primary mb-4">Create New Practice Team</h3>
-              <form onSubmit={handleCreateTeam} className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  {(['LITIGATION', 'GENERAL'] as const).map((department) => (
-                    <button
-                      key={department}
-                      type="button"
-                      onClick={() => setNewTeamDepartment(department)}
-                      className={`rounded-xl border px-3 py-3 text-xs font-bold ${newTeamDepartment === department ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-gray-50 text-gray-600'}`}
-                    >
-                      {department === 'GENERAL' ? '🏢 General Retainer' : '⚖️ Litigation'}
-                    </button>
-                  ))}
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center text-xl font-bold">
+                    🛡️
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+                      Manage Practice Teams
+                      <span className="bg-amber-100 text-amber-900 text-xs px-2.5 py-0.5 rounded-full font-black">
+                        {teams.length} Teams
+                      </span>
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Create new litigation teams or remove teams from the firm directory.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-primary uppercase tracking-widest mb-2">Team Name *</label>
-                  <input
-                    type="text"
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold uppercase"
-                    placeholder={newTeamDepartment === 'GENERAL' ? 'e.g. SME ADVISORY TEAM' : 'e.g. TEAM TITAN'}
-                    required
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManageTeamsModalOpen(false);
+                    setTeamDeleteConfirm(null);
+                  }}
+                  className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Feedback Notice */}
+              {teamNotice && (
+                <div
+                  className={`mt-4 p-3.5 rounded-2xl text-xs font-bold border flex items-center justify-between ${
+                    teamNotice.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}
+                >
+                  <span>{teamNotice.message}</span>
                   <button
                     type="button"
-                    onClick={() => setIsAddTeamModalOpen(false)}
-                    className="px-5 py-3 text-gray-400 font-bold hover:text-primary text-xs"
+                    onClick={() => setTeamNotice(null)}
+                    className="text-gray-400 hover:text-gray-600 font-bold ml-2 text-xs"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 bg-amber-600 text-white font-bold rounded-xl shadow-md hover:bg-amber-700 text-xs uppercase tracking-wider"
-                  >
-                    Create Team
+                    ✕
                   </button>
                 </div>
-              </form>
+              )}
+
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto space-y-6 pt-4 pr-1">
+                {/* Create Team Form Card */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
+                    <span>✨</span> Create New Practice Team
+                  </h4>
+
+                  <form onSubmit={handleCreateTeam} className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewTeamDepartment('LITIGATION')}
+                        className={`rounded-xl border py-2.5 px-3 text-xs font-bold transition-all cursor-pointer ${
+                          newTeamDepartment === 'LITIGATION'
+                            ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        ⚖️ Litigation Team
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewTeamDepartment('GENERAL')}
+                        className={`rounded-xl border py-2.5 px-3 text-xs font-bold transition-all cursor-pointer ${
+                          newTeamDepartment === 'GENERAL'
+                            ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        🏢 General & Property
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-bold uppercase text-slate-900 placeholder:text-gray-400 placeholder:normal-case focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        placeholder={
+                          newTeamDepartment === 'GENERAL'
+                            ? 'e.g. PROPERTY CONVEYANCING'
+                            : 'e.g. TITAN LITIGATION GROUP'
+                        }
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={isCreatingTeam || !newTeamName.trim()}
+                        className="px-5 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shrink-0 shadow-md"
+                      >
+                        {isCreatingTeam ? 'Adding...' : '+ Add Team'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Team Delete Confirmation Alert */}
+                {teamDeleteConfirm && (
+                  <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex flex-col gap-2 animate-fadeIn">
+                    <div className="flex items-start gap-2 text-red-900 font-bold text-sm">
+                      <span className="text-lg">⚠️</span>
+                      <div>
+                        <div>Are you sure you want to delete <strong className="underline font-black">{teamDeleteConfirm}</strong>?</div>
+                        <div className="text-xs font-normal text-red-700 mt-0.5">
+                          Assigned lawyers ({lawyers.filter((l) => (l.litigationTeam || '').toUpperCase() === teamDeleteConfirm.toUpperCase()).length}) will remain active and can be reassigned to another team.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setTeamDeleteConfirm(null)}
+                        className="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isDeletingTeam}
+                        onClick={() => handleDeleteTeam(teamDeleteConfirm)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                      >
+                        {isDeletingTeam ? 'Deleting...' : 'Yes, Delete Team'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Existing Teams Directory */}
+                <div className="space-y-4">
+                  {/* Litigation Teams List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <span>⚖️</span> Litigation Teams
+                        <span className="text-slate-400 font-normal">
+                          ({teamsForDepartment(teams, 'LITIGATION').length})
+                        </span>
+                      </h4>
+                    </div>
+
+                    <div className="grid gap-2">
+                      {teamsForDepartment(teams, 'LITIGATION').map((teamName) => {
+                        const assignedLawyers = lawyers.filter(
+                          (l) => (l.litigationTeam || '').toUpperCase() === teamName.toUpperCase()
+                        );
+                        return (
+                          <div
+                            key={teamName}
+                            className="p-3.5 bg-white border border-gray-200 hover:border-gray-300 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition-all"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="font-black text-slate-900 text-sm flex items-center gap-2 truncate">
+                                <span>🛡️</span>
+                                <span className="truncate">{teamName}</span>
+                              </div>
+                              <div className="text-[11px] text-gray-500 mt-0.5">
+                                {assignedLawyers.length === 0 ? (
+                                  <span className="text-gray-400">No lawyers assigned</span>
+                                ) : (
+                                  <span className="text-emerald-700 font-semibold">
+                                    {assignedLawyers.length} Counsel:{' '}
+                                    {assignedLawyers.map((l) => l.name).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTeamNotice(null);
+                                setTeamDeleteConfirm(teamName);
+                              }}
+                              className="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                              title={`Delete team ${teamName}`}
+                            >
+                              <span>🗑️</span>
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* General & Property Teams List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                        <span>🏢</span> General Retainer & Property Teams
+                        <span className="text-slate-400 font-normal">
+                          ({teamsForDepartment(teams, 'GENERAL').length})
+                        </span>
+                      </h4>
+                    </div>
+
+                    <div className="grid gap-2">
+                      {teamsForDepartment(teams, 'GENERAL').map((teamName) => {
+                        const assignedLawyers = lawyers.filter(
+                          (l) => (l.litigationTeam || '').toUpperCase() === teamName.toUpperCase()
+                        );
+                        return (
+                          <div
+                            key={teamName}
+                            className="p-3.5 bg-white border border-gray-200 hover:border-gray-300 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition-all"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="font-black text-slate-900 text-sm flex items-center gap-2 truncate">
+                                <span>🏛️</span>
+                                <span className="truncate">{teamName}</span>
+                              </div>
+                              <div className="text-[11px] text-gray-500 mt-0.5">
+                                {assignedLawyers.length === 0 ? (
+                                  <span className="text-gray-400">No lawyers assigned</span>
+                                ) : (
+                                  <span className="text-amber-800 font-semibold">
+                                    {assignedLawyers.length} Counsel:{' '}
+                                    {assignedLawyers.map((l) => l.name).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTeamNotice(null);
+                                setTeamDeleteConfirm(teamName);
+                              }}
+                              className="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                              title={`Delete team ${teamName}`}
+                            >
+                              <span>🗑️</span>
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManageTeamsModalOpen(false);
+                    setTeamDeleteConfirm(null);
+                  }}
+                  className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

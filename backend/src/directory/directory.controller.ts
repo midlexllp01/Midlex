@@ -25,7 +25,8 @@ export class DirectoryController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.LAWYER)
   async removeCourt(@Param('name') name: string) {
-    return this.directoryService.removeCourt(name);
+    const decodedName = decodeURIComponent(name);
+    return this.directoryService.removeCourt(decodedName);
   }
 
   @Get('teams')
@@ -40,10 +41,18 @@ export class DirectoryController {
     return this.directoryService.addTeam(name);
   }
 
+  @Post('teams/delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.LAWYER)
+  async removeTeamPost(@Body('name') name: string) {
+    return this.directoryService.removeTeam(name);
+  }
+
   @Delete('teams/:name')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.LAWYER)
   async removeTeam(@Param('name') name: string) {
-    return this.directoryService.removeTeam(name);
+    const decodedName = decodeURIComponent(name);
+    return this.directoryService.removeTeam(decodedName);
   }
 }
