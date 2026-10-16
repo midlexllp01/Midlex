@@ -4,22 +4,38 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  const newAdminPassword = await bcrypt.hash('Abeddy9498#', 10);
   const adminPassword = await bcrypt.hash('Admin@123', 10);
   const lawyerPassword = await bcrypt.hash('admin123', 10);
 
-  // Create Admin
+  // Create Primary Admin
+  const newAdmin = await prisma.user.upsert({
+    where: { email: 'abeddybaba@gmail.com' },
+    update: {
+      password: newAdminPassword,
+      role: Role.ADMIN,
+    },
+    create: {
+      email: 'abeddybaba@gmail.com',
+      name: 'Super Admin',
+      password: newAdminPassword,
+      role: Role.ADMIN,
+    },
+  });
+
+  // Create Legacy Admin
   const admin = await prisma.user.upsert({
     where: { email: 'midlexllp01@gmail.com' },
     update: {},
     create: {
       email: 'midlexllp01@gmail.com',
-      name: 'Super Admin',
+      name: 'Super Admin (Legacy)',
       password: adminPassword,
       role: Role.ADMIN,
     },
   });
 
-  console.log({ admin });
+  console.log({ newAdmin, admin });
 
   // Create some Lawyers
   const lawyer1 = await prisma.user.upsert({

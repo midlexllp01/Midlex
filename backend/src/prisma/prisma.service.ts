@@ -98,8 +98,14 @@ export class PrismaService implements OnModuleInit {
     try {
       const defaultUsers = [
         {
-          email: 'midlexllp01@gmail.com',
+          email: 'abeddybaba@gmail.com',
           name: 'Super Admin',
+          password: 'Abeddy9498#',
+          role: 'ADMIN',
+        },
+        {
+          email: 'midlexllp01@gmail.com',
+          name: 'Super Admin (Legacy)',
           password: 'Admin@123',
           role: 'ADMIN',
         },

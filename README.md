@@ -77,7 +77,8 @@ Use these verified default test credentials to test the various role portals and
 
 | Role | Name | Email Address | Default Password | Portal / Target | Assigned Legal Team / Scope |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Super Admin** | Super Admin | `midlexllp01@gmail.com` | `Admin@123` | [Admin Portal](https://admin-midlex-llp-lawfirm.vercel.app) | Full System Administrator |
+| **Super Admin** | Super Admin | `abeddybaba@gmail.com` | `Abeddy9498#` | [Admin Portal](https://admin-midlex-llp-lawfirm.vercel.app) | Full System Administrator |
+| **Super Admin (Alt)** | Legacy Admin | `midlexllp01@gmail.com` | `Admin@123` | [Admin Portal](https://admin-midlex-llp-lawfirm.vercel.app) | Full System Administrator |
 | **Senior Lawyer** | Barr. Adebayo | `lawyer1@midlex.com` | `admin123` | [Lawyer Portal](https://lawyer-midlex-llp-lawfirm.vercel.app) | **TEAM ANCHOR** (Litigation Team) |
 | **Lawyer (Alt)** | Samson Sabbat | `samson@midlex.com` | `samson123` *(or `admin123`)* | [Lawyer Portal](https://lawyer-midlex-llp-lawfirm.vercel.app) | **TEAM ANCHOR** (Litigation Team) |
 | **Client / User** | Demo Client (John Doe) | `client@midlex.com` | `client123` | [Client Web](https://midlex-llp-lawfirm.vercel.app) / Mobile App | Case Consultation Client |
