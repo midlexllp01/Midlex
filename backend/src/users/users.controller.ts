@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -85,6 +86,9 @@ export class UsersController {
     @Body() body: any,
   ) {
     const update: any = {};
+    if (body.name !== undefined) update.name = String(body.name).trim();
+    if (body.email !== undefined) update.email = String(body.email).trim().toLowerCase();
+    if (body.phone !== undefined) update.phone = String(body.phone).trim();
     if (body.litigationTeam !== undefined) {
       update.litigationTeam = String(body.litigationTeam).trim().toUpperCase();
     }
@@ -100,7 +104,59 @@ export class UsersController {
           ? 'DEACTIVATED'
           : 'ACTIVE';
     }
+    if (body.password && String(body.password).trim().length > 0) {
+      await this.usersService.updatePassword(id, String(body.password).trim());
+    }
     return this.usersService.update(id, update);
+  }
+
+  @Patch('lawyers/:id')
+  @Roles(Role.ADMIN)
+  async updateLawyer(
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    const update: any = {};
+    if (body.name !== undefined) update.name = String(body.name).trim();
+    if (body.email !== undefined) update.email = String(body.email).trim().toLowerCase();
+    if (body.phone !== undefined) update.phone = String(body.phone).trim();
+    if (body.litigationTeam !== undefined) {
+      update.litigationTeam = String(body.litigationTeam).trim().toUpperCase();
+    }
+    if (body.department !== undefined) {
+      update.department =
+        String(body.department).toUpperCase() === 'GENERAL'
+          ? 'GENERAL'
+          : 'LITIGATION';
+    }
+    if (body.status !== undefined) {
+      update.status =
+        String(body.status).toUpperCase() === 'DEACTIVATED'
+          ? 'DEACTIVATED'
+          : 'ACTIVE';
+    }
+    if (body.password && String(body.password).trim().length > 0) {
+      await this.usersService.updatePassword(id, String(body.password).trim());
+    }
+    return this.usersService.update(id, update);
+  }
+
+  @Delete('lawyers/:id')
+  @Roles(Role.ADMIN)
+  async deleteLawyer(@Param('id') id: string) {
+    return this.usersService.deleteUser(id);
+  }
+
+  @Post('lawyers/:id/delete')
+  @Roles(Role.ADMIN)
+  async deleteLawyerPost(@Param('id') id: string) {
+    return this.usersService.deleteUser(id);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  async deleteUserDirect(@Param('id') id: string) {
+    return this.usersService.deleteUser(id);
   }
 
   @Get('team-messages/:teamName')

@@ -166,4 +166,60 @@ export class UsersService {
       orderBy: { createdAt: 'asc' },
     });
   }
+
+  async deleteUser(id: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new BadRequestException('User not found');
+
+    // 1. Unassign lawyer from any cases
+    await this.prisma.case.updateMany({
+      where: { lawyerId: id },
+      data: { lawyerId: null },
+    });
+
+    // 2. Unassign admin from any cases
+    await this.prisma.case.updateMany({
+      where: { adminId: id },
+      data: { adminId: null },
+    });
+
+    // 3. Unlink verified payments
+    await this.prisma.payment.updateMany({
+      where: { verifiedById: id },
+      data: { verifiedById: null },
+    });
+
+    // 4. Delete messages sent by user
+    try {
+      await this.prisma.message.deleteMany({
+        where: { senderId: id },
+      });
+    } catch {}
+
+    // 5. Delete documents uploaded by user
+    try {
+      await this.prisma.document.deleteMany({
+        where: { uploadedById: id },
+      });
+    } catch {}
+
+    // 6. Delete notifications for user if table exists
+    try {
+      await (this.prisma as any).notification?.deleteMany({
+        where: { recipientId: id },
+      });
+    } catch {}
+
+    // 7. Try Firebase Auth deletion (non-fatal)
+    try {
+      await getAuth().deleteUser(id);
+    } catch (fbErr: any) {
+      console.warn('[auth] Firebase delete user non-fatal:', fbErr?.message || fbErr);
+    }
+
+    // 8. Delete user record
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
 }

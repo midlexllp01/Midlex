@@ -257,7 +257,21 @@ export class PrismaService implements OnModuleInit {
       findUnique: (args: QueryArgs) => this.findUnique(name, args),
       findMany: (args: QueryArgs = {}) => this.findMany(name, args),
       update: (args: QueryArgs) => this.update(name, args),
+      updateMany: async (args: QueryArgs) => {
+        const rows = await this.findMany(name, { where: args.where });
+        for (const r of rows) {
+          await this.update(name, { where: { id: r.id }, data: args.data });
+        }
+        return { count: rows.length };
+      },
       delete: (args: QueryArgs) => this.delete(name, args),
+      deleteMany: async (args: QueryArgs = {}) => {
+        const rows = await this.findMany(name, { where: args.where });
+        for (const r of rows) {
+          await this.delete(name, { where: { id: r.id } });
+        }
+        return { count: rows.length };
+      },
       count: (args: QueryArgs = {}) => this.count(name, args),
       groupBy: (args: QueryArgs) => this.groupBy(name, args),
     };
