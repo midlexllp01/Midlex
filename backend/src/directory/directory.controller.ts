@@ -21,6 +21,13 @@ export class DirectoryController {
     return this.directoryService.addCourt(name);
   }
 
+  @Post('courts/delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.LAWYER)
+  async removeCourtPost(@Body('name') name: string) {
+    return this.directoryService.removeCourt(name);
+  }
+
   @Delete('courts/:name')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.LAWYER)

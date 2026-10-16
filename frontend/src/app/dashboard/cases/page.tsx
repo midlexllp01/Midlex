@@ -106,12 +106,18 @@ export default function CasesPage() {
         // Fetch directory courts & teams from backend
         try {
           const backendCourts = await apiFetch<string[]>('/directory/courts');
-          if (Array.isArray(backendCourts) && backendCourts.length > 0) {
+          if (Array.isArray(backendCourts)) {
             setCourts(backendCourts);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('midlex_courts', JSON.stringify(backendCourts));
+            }
           }
           const backendTeams = await apiFetch<string[]>('/directory/teams');
-          if (Array.isArray(backendTeams) && backendTeams.length > 0) {
+          if (Array.isArray(backendTeams)) {
             setTeams(backendTeams);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('midlex_teams', JSON.stringify(backendTeams));
+            }
           }
         } catch (e) {
           console.warn('Could not fetch directory from backend, using defaults:', e);
@@ -124,8 +130,22 @@ export default function CasesPage() {
     };
     fetchCases();
 
-    // Load saved case overrides from localStorage if present
+    // Load saved case overrides, teams, and courts from localStorage if present
     if (typeof window !== 'undefined') {
+      const savedTeams = localStorage.getItem('midlex_teams');
+      if (savedTeams) {
+        try {
+          const parsed = JSON.parse(savedTeams);
+          if (Array.isArray(parsed) && parsed.length > 0) setTeams(parsed);
+        } catch (e) {}
+      }
+      const savedCourts = localStorage.getItem('midlex_courts');
+      if (savedCourts) {
+        try {
+          const parsed = JSON.parse(savedCourts);
+          if (Array.isArray(parsed) && parsed.length > 0) setCourts(parsed);
+        } catch (e) {}
+      }
       const savedOverrides = localStorage.getItem('midlex_case_overrides');
       if (savedOverrides) {
         try { setOverrides(JSON.parse(savedOverrides)); } catch (e) {}
@@ -182,6 +202,18 @@ export default function CasesPage() {
   const handleAddCourt = async () => {
     const clean = newCourtInput.trim().toUpperCase();
     if (!clean) return;
+    if (courts.some((c) => c.toUpperCase() === clean.toUpperCase())) {
+      setNewCourtInput('');
+      return;
+    }
+
+    const nextCourts = [...courts, clean];
+    setCourts(nextCourts);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('midlex_courts', JSON.stringify(nextCourts));
+    }
+    setNewCourtInput('');
+
     try {
       const updated = await apiFetch<string[]>('/directory/courts', {
         method: 'POST',
@@ -189,39 +221,40 @@ export default function CasesPage() {
       });
       if (Array.isArray(updated) && updated.length > 0) {
         setCourts(updated);
-        localStorage.setItem('midlex_courts', JSON.stringify(updated));
-      } else if (!courts.includes(clean)) {
-        const next = [...courts, clean];
-        setCourts(next);
-        localStorage.setItem('midlex_courts', JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('midlex_courts', JSON.stringify(updated));
+        }
       }
-    } catch (e) {
-      if (!courts.includes(clean)) {
-        const next = [...courts, clean];
-        setCourts(next);
-        localStorage.setItem('midlex_courts', JSON.stringify(next));
-      }
-    }
-    setNewCourtInput('');
+    } catch (e) {}
   };
 
   const handleRemoveCourt = async (courtName: string) => {
+    const nextCourts = courts.filter((c) => c.toUpperCase() !== courtName.toUpperCase());
+    setCourts(nextCourts);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('midlex_courts', JSON.stringify(nextCourts));
+    }
+
     try {
-      const updated = await apiFetch<string[]>(`/directory/courts/${encodeURIComponent(courtName)}`, {
-        method: 'DELETE',
-      });
+      let updated: string[] | null = null;
+      try {
+        updated = await apiFetch<string[]>('/directory/courts/delete', {
+          method: 'POST',
+          body: JSON.stringify({ name: courtName }),
+        });
+      } catch {
+        updated = await apiFetch<string[]>(`/directory/courts/${encodeURIComponent(courtName)}`, {
+          method: 'DELETE',
+        });
+      }
       if (Array.isArray(updated)) {
         setCourts(updated);
-        localStorage.setItem('midlex_courts', JSON.stringify(updated));
-      } else {
-        const next = courts.filter(c => c !== courtName);
-        setCourts(next);
-        localStorage.setItem('midlex_courts', JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('midlex_courts', JSON.stringify(updated));
+        }
       }
     } catch (e) {
-      const next = courts.filter(c => c !== courtName);
-      setCourts(next);
-      localStorage.setItem('midlex_courts', JSON.stringify(next));
+      console.warn('Could not remove court from backend:', e);
     }
   };
 
