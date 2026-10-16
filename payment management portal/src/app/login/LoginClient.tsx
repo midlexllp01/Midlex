@@ -21,9 +21,16 @@ export default function LoginClient() {
 
   useEffect(() => {
     setMounted(true);
+    setEmail("");
+    setPassword("");
+    const clearTimer = setTimeout(() => {
+      setEmail("");
+      setPassword("");
+    }, 100);
     try {
       apiFetch("/health").catch(() => {});
     } catch {}
+    return () => clearTimeout(clearTimer);
   }, []);
 
   useEffect(() => {
@@ -96,7 +103,25 @@ export default function LoginClient() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} autoComplete="off" method="post" action="#" className="space-y-5">
+          {/* Hidden decoy fields to trap aggressive browser autofill */}
+          <input
+            type="text"
+            name="prevent_autofill_fin_usr"
+            tabIndex={-1}
+            aria-hidden="true"
+            autoComplete="off"
+            style={{ position: "absolute", opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: "none" }}
+          />
+          <input
+            type="password"
+            name="prevent_autofill_fin_pwd"
+            tabIndex={-1}
+            aria-hidden="true"
+            autoComplete="new-password"
+            style={{ position: "absolute", opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: "none" }}
+          />
+
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100">
               {error}
@@ -109,11 +134,16 @@ export default function LoginClient() {
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <input
                 type="email"
+                id="midlex_finance_email_input"
+                name="midlex_finance_email_input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className="w-full bg-white border-2 border-slate-300 text-slate-900 font-bold rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition-all placeholder:text-gray-400"
-                placeholder="finance@midlex.com"
+                placeholder="Enter finance email"
                 required
               />
             </div>
@@ -125,9 +155,14 @@ export default function LoginClient() {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <input
                 type={showPassword ? "text" : "password"}
+                id="midlex_finance_pwd_input"
+                name="midlex_finance_pwd_input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="off"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className="w-full bg-white border-2 border-slate-300 text-slate-900 font-bold rounded-2xl py-3.5 pl-12 pr-12 focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition-all placeholder:text-gray-400"
                 placeholder="Enter password"
                 required

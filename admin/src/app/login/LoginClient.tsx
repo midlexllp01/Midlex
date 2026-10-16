@@ -30,10 +30,17 @@ export default function LoginClient() {
 
   useEffect(() => {
     setMounted(true);
+    setEmail("");
+    setPassword("");
+    const clearTimer = setTimeout(() => {
+      setEmail("");
+      setPassword("");
+    }, 100);
     // Ping backend immediately when visiting the login page
     try {
       apiFetch("/health").catch(() => {});
     } catch {}
+    return () => clearTimeout(clearTimer);
   }, []);
 
   // If already logged in, redirect straight to dashboard
@@ -126,7 +133,25 @@ export default function LoginClient() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} autoComplete="off" method="post" action="#" className="space-y-6">
+          {/* Hidden decoy fields to trap aggressive browser autofill */}
+          <input
+            type="text"
+            name="prevent_autofill_admin_usr"
+            tabIndex={-1}
+            aria-hidden="true"
+            autoComplete="off"
+            style={{ position: "absolute", opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: "none" }}
+          />
+          <input
+            type="password"
+            name="prevent_autofill_admin_pwd"
+            tabIndex={-1}
+            aria-hidden="true"
+            autoComplete="new-password"
+            style={{ position: "absolute", opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: "none" }}
+          />
+
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100">
               {error}
@@ -139,9 +164,14 @@ export default function LoginClient() {
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
               <input
                 type="email"
+                id="midlex_admin_email_input"
+                name="midlex_admin_email_input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 style={{ color: "#000000", WebkitTextFillColor: "#000000", backgroundColor: "#ffffff" }}
                 className="w-full bg-white border-2 border-slate-400 text-slate-900 font-bold rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-gray-400"
                 placeholder="Enter admin email"
@@ -156,9 +186,14 @@ export default function LoginClient() {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
               <input
                 type={showPassword ? "text" : "password"}
+                id="midlex_admin_pwd_input"
+                name="midlex_admin_pwd_input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="off"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 style={{ color: "#000000", WebkitTextFillColor: "#000000", backgroundColor: "#ffffff" }}
                 className="w-full bg-white border-2 border-slate-400 text-slate-900 font-bold rounded-2xl py-4 pl-12 pr-12 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-gray-400"
                 placeholder="Enter password"
@@ -175,11 +210,7 @@ export default function LoginClient() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
-              <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary" />
-              Remember me
-            </label>
+          <div className="flex items-center justify-end text-sm">
             <Link href="/forgot-password" className="text-secondary font-bold hover:underline">
               Forgot password?
             </Link>
