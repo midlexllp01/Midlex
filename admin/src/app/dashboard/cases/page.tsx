@@ -51,14 +51,11 @@ const generalTeams = [
 const defaultTeams = [...litigationTeams, ...generalTeams];
 
 const teamsForWorkspace = (teams: string[], workspace: 'LITIGATION' | 'GENERAL') => {
-  const defaults = workspace === 'GENERAL' ? generalTeams : litigationTeams;
   const generalMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
-  const litigationMarkers = ['LITIGATION', 'ANCHOR', 'ALPHA', 'MARITIME', 'DISPUTE'];
-  return Array.from(new Set([...defaults, ...teams.filter((team) => {
-    const isGeneral = generalMarkers.some((marker) => team.includes(marker));
-    const isLitigation = litigationMarkers.some((marker) => team.includes(marker));
-    return workspace === 'GENERAL' ? isGeneral || !isLitigation : isLitigation || !isGeneral;
-  })]));
+  return teams.filter((team) => {
+    const isGeneral = generalMarkers.some((marker) => team.toUpperCase().includes(marker));
+    return workspace === 'GENERAL' ? isGeneral : !isGeneral;
+  });
 };
 
 const defaultCourts = [
@@ -132,8 +129,11 @@ export default function CasesPage() {
             setCourts(backendCourts);
           }
           const backendTeams = await apiFetch<string[]>('/directory/teams');
-          if (Array.isArray(backendTeams) && backendTeams.length > 0) {
+          if (Array.isArray(backendTeams)) {
             setTeams(backendTeams);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('midlex_teams', JSON.stringify(backendTeams));
+            }
           }
         } catch (e) {
           console.warn('Could not fetch directory from backend, using defaults:', e);
@@ -146,11 +146,20 @@ export default function CasesPage() {
     };
     fetchCases();
 
-    // Load saved case overrides from localStorage if present
+    // Load saved case overrides and saved teams from localStorage if present
     if (typeof window !== 'undefined') {
       const savedDepartment = localStorage.getItem('midlex_admin_dept');
       if (user?.role === 'ADMIN' && (savedDepartment === 'LITIGATION' || savedDepartment === 'GENERAL')) {
         setCategoryFilter(savedDepartment);
+      }
+      const savedTeams = localStorage.getItem('midlex_teams');
+      if (savedTeams) {
+        try {
+          const parsed = JSON.parse(savedTeams);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTeams(parsed);
+          }
+        } catch (e) {}
       }
       const savedOverrides = localStorage.getItem('midlex_case_overrides');
       if (savedOverrides) {
@@ -162,9 +171,24 @@ export default function CasesPage() {
   const handleAddTeam = async () => {
     const enteredName = newTeamInput.trim().toUpperCase();
     if (!enteredName) return;
-    const workspace = categoryFilter === 'GENERAL' ? 'GENERAL' : 'LITIGATION';
-    const prefix = workspace === 'GENERAL' ? 'GENERAL RETAINER' : 'LITIGATION';
-    const clean = enteredName.startsWith(prefix) ? enteredName : `${prefix} - ${enteredName}`;
+    const generalMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
+    const clean =
+      categoryFilter === 'GENERAL' && !generalMarkers.some((m) => enteredName.includes(m))
+        ? `${enteredName} (GENERAL)`
+        : enteredName;
+
+    if (teams.some((t) => t.toUpperCase() === clean.toUpperCase())) {
+      setNewTeamInput('');
+      return;
+    }
+
+    const nextTeams = [...teams, clean];
+    setTeams(nextTeams);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+    }
+    setNewTeamInput('');
+
     try {
       const updated = await apiFetch<string[]>('/directory/teams', {
         method: 'POST',
@@ -172,39 +196,40 @@ export default function CasesPage() {
       });
       if (Array.isArray(updated) && updated.length > 0) {
         setTeams(updated);
-        localStorage.setItem('midlex_teams', JSON.stringify(updated));
-      } else if (!teams.includes(clean)) {
-        const next = [...teams, clean];
-        setTeams(next);
-        localStorage.setItem('midlex_teams', JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('midlex_teams', JSON.stringify(updated));
+        }
       }
-    } catch (e) {
-      if (!teams.includes(clean)) {
-        const next = [...teams, clean];
-        setTeams(next);
-        localStorage.setItem('midlex_teams', JSON.stringify(next));
-      }
-    }
-    setNewTeamInput('');
+    } catch (e) {}
   };
 
   const handleRemoveTeam = async (teamName: string) => {
+    const nextTeams = teams.filter((t) => t.toUpperCase() !== teamName.toUpperCase());
+    setTeams(nextTeams);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('midlex_teams', JSON.stringify(nextTeams));
+    }
+
     try {
-      const updated = await apiFetch<string[]>(`/directory/teams/${encodeURIComponent(teamName)}`, {
-        method: 'DELETE',
-      });
+      let updated: string[] | null = null;
+      try {
+        updated = await apiFetch<string[]>('/directory/teams/delete', {
+          method: 'POST',
+          body: JSON.stringify({ name: teamName }),
+        });
+      } catch {
+        updated = await apiFetch<string[]>(`/directory/teams/${encodeURIComponent(teamName)}`, {
+          method: 'DELETE',
+        });
+      }
       if (Array.isArray(updated)) {
         setTeams(updated);
-        localStorage.setItem('midlex_teams', JSON.stringify(updated));
-      } else {
-        const next = teams.filter(t => t !== teamName);
-        setTeams(next);
-        localStorage.setItem('midlex_teams', JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('midlex_teams', JSON.stringify(updated));
+        }
       }
     } catch (e) {
-      const next = teams.filter(t => t !== teamName);
-      setTeams(next);
-      localStorage.setItem('midlex_teams', JSON.stringify(next));
+      console.warn('Could not remove team from backend:', e);
     }
   };
 
@@ -401,9 +426,9 @@ export default function CasesPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setIsTeamsModalOpen(true)}
-              className="px-4 py-3 bg-secondary text-white font-bold rounded-2xl shadow-lg hover:bg-secondary/90 transition-all text-xs flex items-center gap-2"
+              className="px-4 py-3 bg-secondary text-white font-bold rounded-2xl shadow-lg hover:bg-secondary/90 transition-all text-xs flex items-center gap-2 cursor-pointer"
             >
-              <span>Litigation Teams ({teams.length})</span>
+              <span>{categoryFilter === 'GENERAL' ? 'General Retainer' : 'Litigation'} Teams ({teamsForWorkspace(teams, categoryFilter === 'GENERAL' ? 'GENERAL' : 'LITIGATION').length})</span>
             </button>
             <button
               onClick={() => setIsCourtsModalOpen(true)}

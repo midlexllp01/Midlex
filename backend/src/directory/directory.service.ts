@@ -52,14 +52,8 @@ export class DirectoryService implements OnModuleInit {
         where: { id: 'settings' },
       });
       if (record && (Array.isArray(record.teams) || Array.isArray(record.courts))) {
-        this.teams =
-          Array.isArray(record.teams) && record.teams.length > 0
-            ? record.teams
-            : [...defaultTeams];
-        this.courts =
-          Array.isArray(record.courts) && record.courts.length > 0
-            ? record.courts
-            : [...defaultCourts];
+        this.teams = Array.isArray(record.teams) ? record.teams : [...defaultTeams];
+        this.courts = Array.isArray(record.courts) ? record.courts : [...defaultCourts];
         this.isLoaded = true;
         this.saveToFile();
         return;
@@ -76,14 +70,8 @@ export class DirectoryService implements OnModuleInit {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8');
         const parsed = JSON.parse(raw);
-        this.courts =
-          Array.isArray(parsed.courts) && parsed.courts.length > 0
-            ? parsed.courts
-            : [...defaultCourts];
-        this.teams =
-          Array.isArray(parsed.teams) && parsed.teams.length > 0
-            ? parsed.teams
-            : [...defaultTeams];
+        this.courts = Array.isArray(parsed.courts) ? parsed.courts : [...defaultCourts];
+        this.teams = Array.isArray(parsed.teams) ? parsed.teams : [...defaultTeams];
         this.isLoaded = true;
         await this.syncToDb();
         return;

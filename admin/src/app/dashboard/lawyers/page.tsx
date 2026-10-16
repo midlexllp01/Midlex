@@ -38,12 +38,10 @@ const teamsForDepartment = (
   department: 'LITIGATION' | 'GENERAL',
 ) => {
   const generalMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
-  const filtered = teams.filter((team) => {
+  return teams.filter((team) => {
     const isGeneral = generalMarkers.some((marker) => team.toUpperCase().includes(marker));
     return department === 'GENERAL' ? isGeneral : !isGeneral;
   });
-  if (filtered.length > 0) return filtered;
-  return department === 'GENERAL' ? generalTeams : litigationTeams;
 };
 
 export default function LawyersPage() {
