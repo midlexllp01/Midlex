@@ -77,6 +77,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/midlex-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/midlex-logo.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="color-scheme" content="light" />
         <meta name="supported-color-schemes" content="light" />

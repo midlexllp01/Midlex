@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "setup:workspace": "node workspace/scripts/setup-local.mjs",
+    "dev:workspace": "node workspace/scripts/dev.mjs",
+    "sync:workspace": "node workspace/scripts/install-integrations.mjs",
     "build": "cd backend && npm install --include=dev && npx prisma generate && npm run build",
     "start": "cd backend && npm run start:prod",
     "start:prod": "cd backend && npm run start:prod"

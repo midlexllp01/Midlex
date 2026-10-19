@@ -20,7 +20,10 @@ type ModelName =
   | 'inquiry'
   | 'caseTimeline'
   | 'directory'
-  | 'property';
+  | 'property'
+  | 'workspaceUser'
+  | 'workspaceCode'
+  | 'workspaceAudit';
 
 type QueryArgs = {
   where?: any;
@@ -46,6 +49,9 @@ const COLLECTIONS: Record<ModelName, string> = {
   caseTimeline: 'caseTimelines',
   directory: 'directory',
   property: 'properties',
+  workspaceUser: 'workspaceUsers',
+  workspaceCode: 'workspaceCodes',
+  workspaceAudit: 'workspaceAudit',
 };
 
 @Injectable()
@@ -54,7 +60,7 @@ export class PrismaService implements OnModuleInit {
   private db: any = null;
   private bucketName = process.env.FIREBASE_STORAGE_BUCKET;
   private localStore: Record<string, Record<string, any>> = {};
-  private dbPath = path.join(process.cwd(), 'data', 'offline-db.json');
+  private dbPath = path.join(process.env.MIDLEX_DATA_DIR || path.join(process.cwd(), 'data'), 'offline-db.json');
 
   user = this.model('user');
   case = this.model('case');
@@ -69,10 +75,51 @@ export class PrismaService implements OnModuleInit {
   caseTimeline = this.model('caseTimeline');
   directory = this.model('directory');
   property = this.model('property');
+  workspaceUser = this.model('workspaceUser');
+  workspaceCode = this.model('workspaceCode');
+  workspaceAudit = this.model('workspaceAudit');
+
+  async mutateWorkspaceUser(id: string, change: (current: any) => Record<string, any>) {
+    if (this.isOffline) {
+      const current = this.fromLocal(this.localStore.workspaceUsers?.[id]);
+      if (!current) throw new Error('Workspace identity not found');
+      const updated = { ...current, ...change(current), updatedAt: new Date() };
+      this.localStore.workspaceUsers[id] = this.toLocal(updated);
+      this.saveLocalStore();
+      return updated;
+    }
+    const ref = this.db.collection('workspaceUsers').doc(id);
+    return this.db.runTransaction(async (tx: any) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists) throw new Error('Workspace identity not found');
+      const current = this.fromDoc(snapshot);
+      const updated = { ...current, ...change(current), updatedAt: new Date() };
+      tx.set(ref, this.toFirestore(updated));
+      return updated;
+    });
+  }
+
+  // Consume before yielding in local mode; a Firestore transaction protects multiple instances.
+  async consumeWorkspaceCode(id: string) {
+    if (this.isOffline) {
+      const row = this.localStore.workspaceCodes?.[id];
+      if (!row || row.usedAt) return null;
+      row.usedAt = new Date().toISOString();
+      this.saveLocalStore();
+      return this.fromLocal(row);
+    }
+    const ref = this.db.collection('workspaceCodes').doc(id);
+    return this.db.runTransaction(async (tx: any) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists || snapshot.data().usedAt) return null;
+      tx.update(ref, { usedAt: Timestamp.now() });
+      return this.fromDoc(snapshot);
+    });
+  }
 
   constructor() {
     const serviceAccount = this.readServiceAccount();
-    if (!serviceAccount && !process.env.FIRESTORE_EMULATOR_HOST && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (process.env.MIDLEX_OFFLINE === 'true' || !serviceAccount && !process.env.FIRESTORE_EMULATOR_HOST && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       this.isOffline = true;
       console.log('[PrismaService] Running in OFFLINE local JSON database mode.');
       this.loadLocalStore();

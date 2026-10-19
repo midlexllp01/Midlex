@@ -1,0 +1,7 @@
+export const projectId: string = '__PROJECT__';
+export const privatePortal = __PRIVATE__;
+export const entryOverride: string = '__ENTRY__';
+export const adminOnly = __ADMIN_ONLY__;
+export const workspaceUrl = process.env.WORKSPACE_URL || 'http://localhost:3011';
+export const apiUrl = process.env.WORKSPACE_API_URL || 'http://localhost:3001';
+export const cookieName = 'midlex_project___PROJECT__';

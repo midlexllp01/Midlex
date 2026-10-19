@@ -50,3 +50,8 @@ mobile/.packages
 mobile/.pub-cache/
 mobile/.pub/
 mobile/build/
+**/.next/
+*.tsbuildinfo
+workspace/.local-access.md
+workspace/.bridge-check/
+!**/.env.workspace.example

@@ -9,9 +9,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/email/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { WorkspaceModule } from '../workspace/workspace.module';
 
 @Module({
   imports: [
+    WorkspaceModule,
     UsersModule,
     CasesModule,
     NotificationsModule,

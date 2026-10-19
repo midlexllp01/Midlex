@@ -1,0 +1,14 @@
+// Send the scoped workspace token only to this project's configured API origin.
+export function workspaceFetch(input: RequestInfo | URL, options: RequestInit = {}) {
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(options.headers).forEach((value, key) => headers.set(key, value));
+  if (typeof window !== 'undefined') {
+    const api = process.env.NEXT_PUBLIC_API_URL || '__API__';
+    const target = new URL(input instanceof Request ? input.url : String(input), window.location.origin);
+    if (target.origin === new URL(api, window.location.origin).origin) {
+      const token = localStorage.getItem('midlex_token');
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  return fetch(input, { ...options, headers });
+}

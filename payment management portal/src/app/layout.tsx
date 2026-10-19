@@ -16,6 +16,14 @@ import { AuthProvider } from "@/context/AuthContext";
 import BackendWarmup from "@/components/BackendWarmup";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/midlex-logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/midlex-logo.png",
+  },
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://payment-portal-midlex-llp-lawfirm.vercel.app"),
   title: {
     default: "Finance & Payment Portal | Midlex LLP",
@@ -50,6 +58,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/midlex-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/midlex-logo.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="color-scheme" content="light" />
         <meta name="supported-color-schemes" content="light" />
