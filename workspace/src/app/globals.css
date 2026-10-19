@@ -281,6 +281,17 @@ form {
   color: #dbe8df;
 }
 
+.role-pills span.active-workspace {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  font-weight: 600;
+  color: #ffffff;
+  padding: 10px 18px;
+  font-size: 13px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  letter-spacing: 0.3px;
+}
+
 .login-story footer {
   display: flex;
   align-items: center;
@@ -1566,6 +1577,11 @@ td small {
   .role-pills span {
     padding: 7px 11px;
     font-size: 10px;
+  }
+
+  .role-pills span.active-workspace {
+    padding: 8px 14px;
+    font-size: 11px;
   }
 
   .login-story footer {
