@@ -30,6 +30,13 @@ const DEV_PROJECT_URLS: Record<string, string> = {
   'ai': 'https://ai.midlex.xyz'
 };
 
+let activeWorkspaceUsers = [
+  { id: 'usr-dev-joshua', name: 'Joshua Omatsuli', email: 'joshuaomatsuli01@gmail.com', role: 'DEVELOPER', active: true, mustChangePassword: false, grants: {} },
+  { id: 'adm-004', name: 'Abeddy (Executive Admin)', email: 'abeddybaba@gmail.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: { 'legal-admin': 'ADMIN', 'legal-staff': 'ADMIN', 'finance': 'ADMIN', 'cbt': 'ADMIN', 'mip': 'ADMIN', 'hrms': 'ADMIN', 'analytics': 'ADMIN', 'media': 'ADMIN', 'realty': 'ADMIN', 'ai': 'ADMIN' } },
+  { id: 'adm-001', name: 'Midlex HR Directorate', email: 'hr@midlex.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: {} },
+  { id: 'stf-004', name: 'Victor Developer', email: 'victor.dev@midlex.com', role: 'STAFF', active: true, mustChangePassword: false, grants: {} }
+];
+
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const path = (await context.params).path.join('/');
   if (!allowed.test(path)) return NextResponse.json({ message: 'Not found' }, { status: 404 });
@@ -161,16 +168,35 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           createdAt: '2026-10-20T10:00:00.000Z'
         },
         projects: DEV_PROJECTS,
-        users: [
-          { id: 'usr-dev-joshua', name: 'Joshua Omatsuli', email: 'joshuaomatsuli01@gmail.com', role: 'DEVELOPER', active: true, mustChangePassword: false, grants: {} },
-          { id: 'adm-004', name: 'Abeddy (Executive Admin)', email: 'abeddybaba@gmail.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: {} },
-          { id: 'adm-001', name: 'Midlex HR Directorate', email: 'hr@midlex.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: {} }
-        ],
+        users: activeWorkspaceUsers,
         audit: [
           { id: 'aud-2', actorId: 'usr-dev-joshua', action: 'ADMIN_ONBOARDED', target: 'Abeddy (abeddybaba@gmail.com)', createdAt: new Date().toISOString() },
           { id: 'aud-1', actorId: 'usr-dev-joshua', action: 'DEVELOPER_SESSION_ACTIVE', target: 'Developer Ecosystem', createdAt: new Date().toISOString() }
         ]
       }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    if (path.startsWith('users/') && request.method === 'DELETE') {
+      const targetId = path.replace('users/', '');
+      activeWorkspaceUsers = activeWorkspaceUsers.filter(u => u.id !== targetId);
+      return NextResponse.json({ success: true, message: 'User deleted successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    if (path === 'users' && request.method === 'POST') {
+      let body: any = {};
+      try { body = JSON.parse(await request.text()); } catch {}
+      const newUser = {
+        id: `usr-${Date.now()}`,
+        name: body.name || 'Team Member',
+        email: (body.email || '').trim().toLowerCase(),
+        role: body.role || 'STAFF',
+        active: body.active !== false,
+        mustChangePassword: true,
+        grants: body.grants || {},
+        createdAt: new Date().toISOString()
+      };
+      activeWorkspaceUsers.push(newUser);
+      return NextResponse.json(newUser, { status: 201, headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (path.startsWith('launch/')) {
@@ -215,9 +241,32 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           createdAt: '2026-10-16T12:00:00.000Z'
         },
         projects: DEV_PROJECTS,
-        users: [],
+        users: activeWorkspaceUsers,
         audit: []
       }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    if (path.startsWith('users/') && request.method === 'DELETE') {
+      const targetId = path.replace('users/', '');
+      activeWorkspaceUsers = activeWorkspaceUsers.filter(u => u.id !== targetId);
+      return NextResponse.json({ success: true, message: 'User deleted successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    if (path === 'users' && request.method === 'POST') {
+      let body: any = {};
+      try { body = JSON.parse(await request.text()); } catch {}
+      const newUser = {
+        id: `usr-${Date.now()}`,
+        name: body.name || 'Team Member',
+        email: (body.email || '').trim().toLowerCase(),
+        role: body.role || 'STAFF',
+        active: body.active !== false,
+        mustChangePassword: true,
+        grants: body.grants || {},
+        createdAt: new Date().toISOString()
+      };
+      activeWorkspaceUsers.push(newUser);
+      return NextResponse.json(newUser, { status: 201, headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (path.startsWith('launch/')) {
@@ -266,4 +315,4 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     return NextResponse.json(data, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } });
   } catch { return NextResponse.json({ message: 'Unable to reach the workspace service. Please try again.' }, { status: 503 }); }
 }
-export { handle as GET, handle as POST, handle as PATCH };
+export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
