@@ -30,6 +30,13 @@ const DEV_PROJECT_URLS: Record<string, string> = {
   'ai': 'https://ai.midlex.xyz'
 };
 
+let userPasswords: Record<string, string> = {
+  'joshuaomatsuli01@gmail.com': 'Jos@56567',
+  'abeddybaba@gmail.com': 'Abeddy9498#',
+  'hr@midlex.com': 'MidlexHr@2026',
+  'victor.dev@midlex.com': 'VictorDev@2026'
+};
+
 let activeWorkspaceUsers = [
   { id: 'usr-dev-joshua', name: 'Joshua Omatsuli', email: 'joshuaomatsuli01@gmail.com', role: 'DEVELOPER', active: true, mustChangePassword: false, grants: {} },
   { id: 'adm-004', name: 'Abeddy (Executive Admin)', email: 'abeddybaba@gmail.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: { 'legal-admin': 'ADMIN', 'legal-staff': 'ADMIN', 'finance': 'ADMIN', 'cbt': 'ADMIN', 'mip': 'ADMIN', 'hrms': 'ADMIN', 'analytics': 'ADMIN', 'media': 'ADMIN', 'realty': 'ADMIN', 'ai': 'ADMIN' } },
@@ -65,7 +72,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     const cleanEmail = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
 
-    if (cleanEmail === 'joshuaomatsuli01@gmail.com' && password === 'Jos@56567') {
+    if (cleanEmail === 'joshuaomatsuli01@gmail.com' && password === (userPasswords['joshuaomatsuli01@gmail.com'] || 'Jos@56567')) {
       const devToken = `DEV_SESSION_JOSHUA_${Date.now()}`;
       jar.set('midlex_workspace', devToken, {
         httpOnly: true,
@@ -90,7 +97,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
-    if (cleanEmail === 'abeddybaba@gmail.com' && password === 'Abeddy9498#') {
+    if (cleanEmail === 'abeddybaba@gmail.com' && password === (userPasswords['abeddybaba@gmail.com'] || 'Abeddy9498#')) {
       const adminToken = `ADMIN_SESSION_ABEDDY_${Date.now()}`;
       jar.set('midlex_workspace', adminToken, {
         httpOnly: true,
@@ -122,6 +129,27 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
             'ai': 'ADMIN'
           },
           createdAt: '2026-10-16T12:00:00.000Z'
+        }
+      }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
+    // Check other registered workspace staff or admin users
+    const matchedUser = activeWorkspaceUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (matchedUser && userPasswords[cleanEmail] && password === userPasswords[cleanEmail]) {
+      const userToken = `USER_SESSION_${matchedUser.id}_${Date.now()}`;
+      jar.set('midlex_workspace', userToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 28800,
+        ...(isMidlex ? { domain: '.midlex.xyz' } : {}),
+      });
+
+      return NextResponse.json({
+        user: {
+          ...matchedUser,
+          createdAt: new Date().toISOString()
         }
       }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
@@ -185,16 +213,20 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (path === 'users' && request.method === 'POST') {
       let body: any = {};
       try { body = JSON.parse(await request.text()); } catch {}
+      const cleanEmail = (body.email || '').trim().toLowerCase();
       const newUser = {
         id: `usr-${Date.now()}`,
         name: body.name || 'Team Member',
-        email: (body.email || '').trim().toLowerCase(),
+        email: cleanEmail,
         role: body.role || 'STAFF',
         active: body.active !== false,
         mustChangePassword: true,
         grants: body.grants || {},
         createdAt: new Date().toISOString()
       };
+      if (body.password) {
+        userPasswords[cleanEmail] = body.password;
+      }
       activeWorkspaceUsers.push(newUser);
       return NextResponse.json(newUser, { status: 201, headers: { 'Cache-Control': 'no-store' } });
     }
@@ -255,16 +287,20 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (path === 'users' && request.method === 'POST') {
       let body: any = {};
       try { body = JSON.parse(await request.text()); } catch {}
+      const cleanEmail = (body.email || '').trim().toLowerCase();
       const newUser = {
         id: `usr-${Date.now()}`,
         name: body.name || 'Team Member',
-        email: (body.email || '').trim().toLowerCase(),
+        email: cleanEmail,
         role: body.role || 'STAFF',
         active: body.active !== false,
         mustChangePassword: true,
         grants: body.grants || {},
         createdAt: new Date().toISOString()
       };
+      if (body.password) {
+        userPasswords[cleanEmail] = body.password;
+      }
       activeWorkspaceUsers.push(newUser);
       return NextResponse.json(newUser, { status: 201, headers: { 'Cache-Control': 'no-store' } });
     }
@@ -282,6 +318,73 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         ...(isMidlex ? { domain: '.midlex.xyz' } : {}),
       });
       return NextResponse.json({ success: true }, { status: 200 });
+    }
+  }
+
+  // Handle Staff/User Session
+  if (token && token.startsWith('USER_SESSION_')) {
+    const userId = token.split('_')[2];
+    const user = activeWorkspaceUsers.find(u => u.id === userId);
+    if (user) {
+      if (path === 'me') {
+        const userProjects = DEV_PROJECTS.filter(p => user.role === 'ADMIN' || (user.grants && (user.grants as Record<string, any>)[p.id]));
+        return NextResponse.json({
+          user,
+          projects: userProjects.length > 0 ? userProjects : DEV_PROJECTS.slice(0, 4),
+          users: user.role === 'ADMIN' ? activeWorkspaceUsers : [],
+          audit: []
+        }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+      }
+
+      if (path.startsWith('launch/')) {
+        const projectId = path.replace('launch/', '');
+        const launchUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
+        return NextResponse.json({ url: launchUrl }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+      }
+
+      if (path === 'logout') {
+        jar.delete({
+          name: 'midlex_workspace',
+          path: '/',
+          ...(isMidlex ? { domain: '.midlex.xyz' } : {}),
+        });
+        return NextResponse.json({ success: true }, { status: 200 });
+      }
+    }
+  }
+
+  // Universal Password Change for active sessions
+  if (token && path === 'password' && request.method === 'POST') {
+    let body: any = {};
+    try { body = JSON.parse(await request.text()); } catch {}
+    const newPassword = (body.password || '').trim();
+    const currentPassword = (body.currentPassword || '').trim();
+
+    if (!newPassword || newPassword.length < 6) {
+      return NextResponse.json({ message: 'New password must be at least 6 characters' }, { status: 400 });
+    }
+
+    let emailToUpdate: string | null = null;
+    if (token.startsWith('DEV_SESSION_JOSHUA_')) {
+      emailToUpdate = 'joshuaomatsuli01@gmail.com';
+    } else if (token.startsWith('ADMIN_SESSION_ABEDDY_')) {
+      emailToUpdate = 'abeddybaba@gmail.com';
+    } else if (token.startsWith('USER_SESSION_')) {
+      const userId = token.split('_')[2];
+      const u = activeWorkspaceUsers.find(x => x.id === userId);
+      if (u) emailToUpdate = u.email;
+    }
+
+    if (emailToUpdate) {
+      const expected = userPasswords[emailToUpdate];
+      if (expected && currentPassword && currentPassword !== expected) {
+        return NextResponse.json({ message: 'Current password is incorrect' }, { status: 400 });
+      }
+      userPasswords[emailToUpdate] = newPassword;
+      const u = activeWorkspaceUsers.find(x => x.email.toLowerCase() === emailToUpdate?.toLowerCase());
+      if (u) u.mustChangePassword = false;
+
+      return NextResponse.json({ success: true, message: 'Password updated successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
   }
 
