@@ -34,14 +34,22 @@ let userPasswords: Record<string, string> = {
   'joshuaomatsuli01@gmail.com': 'Jos@56567',
   'abeddybaba@gmail.com': 'Abeddy9498#',
   'hr@midlex.com': 'MidlexHr@2026',
-  'victor.dev@midlex.com': 'VictorDev@2026'
+  'victor.dev@midlex.com': 'VictorDev@2026',
+  'ogbeideblessed32@gmail.com': 'Revivalist',
+  'olamidehannah110@gmail.com': 'Olamide2000@',
+  'peerlessoosazuwa7@gmail.com': 'peerless#1',
+  'sabbathsamson67@gmail.com': 'Admin@123'
 };
 
 let activeWorkspaceUsers = [
   { id: 'usr-dev-joshua', name: 'Joshua Omatsuli', email: 'joshuaomatsuli01@gmail.com', role: 'DEVELOPER', active: true, mustChangePassword: false, grants: {} },
   { id: 'adm-004', name: 'Abeddy (Executive Admin)', email: 'abeddybaba@gmail.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: { 'legal-admin': 'ADMIN', 'legal-staff': 'ADMIN', 'finance': 'ADMIN', 'cbt': 'ADMIN', 'mip': 'ADMIN', 'hrms': 'ADMIN', 'analytics': 'ADMIN', 'media': 'ADMIN', 'realty': 'ADMIN', 'ai': 'ADMIN' } },
+  { id: 'adm-005', name: 'Samson Sabbath (Super Admin)', email: 'sabbathsamson67@gmail.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: { 'legal-admin': 'ADMIN', 'legal-staff': 'ADMIN', 'finance': 'ADMIN', 'cbt': 'ADMIN', 'mip': 'ADMIN', 'hrms': 'ADMIN', 'analytics': 'ADMIN', 'media': 'ADMIN', 'realty': 'ADMIN', 'ai': 'ADMIN' } },
   { id: 'adm-001', name: 'Midlex HR Directorate', email: 'hr@midlex.com', role: 'ADMIN', active: true, mustChangePassword: false, grants: {} },
-  { id: 'stf-004', name: 'Victor Developer', email: 'victor.dev@midlex.com', role: 'STAFF', active: true, mustChangePassword: false, grants: {} }
+  { id: 'stf-004', name: 'Victor Developer', email: 'victor.dev@midlex.com', role: 'STAFF', active: true, mustChangePassword: false, grants: {} },
+  { id: 'stf-005', name: 'Blessed Ogbeide (Sapphire)', email: 'ogbeideblessed32@gmail.com', role: 'STAFF', active: true, mustChangePassword: false, grants: { 'legal-staff': 'USER', 'cbt': 'USER', 'hrms': 'USER' } },
+  { id: 'stf-006', name: 'Hannah Olamide (Gemstone)', email: 'olamidehannah110@gmail.com', role: 'STAFF', active: true, mustChangePassword: false, grants: { 'legal-staff': 'USER', 'cbt': 'USER', 'hrms': 'USER' } },
+  { id: 'stf-007', name: 'Peerless Osazuwa (Gemstone)', email: 'peerlessoosazuwa7@gmail.com', role: 'STAFF', active: true, mustChangePassword: false, grants: { 'legal-staff': 'USER', 'cbt': 'USER', 'hrms': 'USER' } }
 ];
 
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
@@ -210,6 +218,34 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       return NextResponse.json({ success: true, message: 'User deleted successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
+    if (path.startsWith('users/') && request.method === 'PATCH') {
+      const targetId = path.replace('users/', '');
+      let body: any = {};
+      try { body = JSON.parse(await request.text()); } catch {}
+      const targetUser = activeWorkspaceUsers.find(u => u.id === targetId);
+      if (!targetUser) {
+        return NextResponse.json({ message: 'User not found' }, { status: 404 });
+      }
+      if (body.name !== undefined) targetUser.name = body.name;
+      if (body.email !== undefined) {
+        const cleanEmail = body.email.trim().toLowerCase();
+        const oldEmail = targetUser.email.toLowerCase();
+        if (oldEmail !== cleanEmail && userPasswords[oldEmail]) {
+          userPasswords[cleanEmail] = userPasswords[oldEmail];
+          delete userPasswords[oldEmail];
+        }
+        targetUser.email = cleanEmail;
+      }
+      if (body.role !== undefined) targetUser.role = body.role;
+      if (body.active !== undefined) targetUser.active = body.active === true || body.active === 'true';
+      if (body.grants !== undefined) targetUser.grants = body.grants;
+      if (body.password) {
+        userPasswords[targetUser.email.toLowerCase()] = body.password;
+        targetUser.mustChangePassword = false;
+      }
+      return NextResponse.json(targetUser, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     if (path === 'users' && request.method === 'POST') {
       let body: any = {};
       try { body = JSON.parse(await request.text()); } catch {}
@@ -284,6 +320,34 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       return NextResponse.json({ success: true, message: 'User deleted successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
+    if (path.startsWith('users/') && request.method === 'PATCH') {
+      const targetId = path.replace('users/', '');
+      let body: any = {};
+      try { body = JSON.parse(await request.text()); } catch {}
+      const targetUser = activeWorkspaceUsers.find(u => u.id === targetId);
+      if (!targetUser) {
+        return NextResponse.json({ message: 'User not found' }, { status: 404 });
+      }
+      if (body.name !== undefined) targetUser.name = body.name;
+      if (body.email !== undefined) {
+        const cleanEmail = body.email.trim().toLowerCase();
+        const oldEmail = targetUser.email.toLowerCase();
+        if (oldEmail !== cleanEmail && userPasswords[oldEmail]) {
+          userPasswords[cleanEmail] = userPasswords[oldEmail];
+          delete userPasswords[oldEmail];
+        }
+        targetUser.email = cleanEmail;
+      }
+      if (body.role !== undefined) targetUser.role = body.role;
+      if (body.active !== undefined) targetUser.active = body.active === true || body.active === 'true';
+      if (body.grants !== undefined) targetUser.grants = body.grants;
+      if (body.password) {
+        userPasswords[targetUser.email.toLowerCase()] = body.password;
+        targetUser.mustChangePassword = false;
+      }
+      return NextResponse.json(targetUser, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     if (path === 'users' && request.method === 'POST') {
       let body: any = {};
       try { body = JSON.parse(await request.text()); } catch {}
@@ -334,6 +398,63 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           users: user.role === 'ADMIN' ? activeWorkspaceUsers : [],
           audit: []
         }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+      }
+
+      if (user.role === 'ADMIN') {
+        if (path.startsWith('users/') && request.method === 'DELETE') {
+          const targetId = path.replace('users/', '');
+          activeWorkspaceUsers = activeWorkspaceUsers.filter(u => u.id !== targetId);
+          return NextResponse.json({ success: true, message: 'User deleted successfully' }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+        }
+
+        if (path.startsWith('users/') && request.method === 'PATCH') {
+          const targetId = path.replace('users/', '');
+          let body: any = {};
+          try { body = JSON.parse(await request.text()); } catch {}
+          const targetUser = activeWorkspaceUsers.find(u => u.id === targetId);
+          if (!targetUser) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
+          }
+          if (body.name !== undefined) targetUser.name = body.name;
+          if (body.email !== undefined) {
+            const cleanEmail = body.email.trim().toLowerCase();
+            const oldEmail = targetUser.email.toLowerCase();
+            if (oldEmail !== cleanEmail && userPasswords[oldEmail]) {
+              userPasswords[cleanEmail] = userPasswords[oldEmail];
+              delete userPasswords[oldEmail];
+            }
+            targetUser.email = cleanEmail;
+          }
+          if (body.role !== undefined) targetUser.role = body.role;
+          if (body.active !== undefined) targetUser.active = body.active === true || body.active === 'true';
+          if (body.grants !== undefined) targetUser.grants = body.grants;
+          if (body.password) {
+            userPasswords[targetUser.email.toLowerCase()] = body.password;
+            targetUser.mustChangePassword = false;
+          }
+          return NextResponse.json(targetUser, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+        }
+
+        if (path === 'users' && request.method === 'POST') {
+          let body: any = {};
+          try { body = JSON.parse(await request.text()); } catch {}
+          const cleanEmail = (body.email || '').trim().toLowerCase();
+          const newUser = {
+            id: `usr-${Date.now()}`,
+            name: body.name || 'Team Member',
+            email: cleanEmail,
+            role: body.role || 'STAFF',
+            active: body.active !== false,
+            mustChangePassword: true,
+            grants: body.grants || {},
+            createdAt: new Date().toISOString()
+          };
+          if (body.password) {
+            userPasswords[cleanEmail] = body.password;
+          }
+          activeWorkspaceUsers.push(newUser);
+          return NextResponse.json(newUser, { status: 201, headers: { 'Cache-Control': 'no-store' } });
+        }
       }
 
       if (path.startsWith('launch/')) {
