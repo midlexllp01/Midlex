@@ -46,6 +46,7 @@ export default function GeneralRetainerOverview() {
         </div>
         <div className="mt-6 rounded-2xl border border-amber-100/20 bg-white/10 p-4 text-xs leading-5 text-amber-50">{RETAINER_NOTICE}</div>
         <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/dashboard/profile#security" className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-white">🔒 Change Password</Link>
           <Link href="/dashboard/cases/new?category=GENERAL&subCategory=General%20Legal%20Advisory" className="rounded-xl bg-amber-400 px-5 py-3 text-xs font-black uppercase tracking-wider text-[#173d27]">Submit retainer claim</Link>
           <Link href="/dashboard/payments" className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-xs font-black uppercase tracking-wider text-white">View payments</Link>
         </div>

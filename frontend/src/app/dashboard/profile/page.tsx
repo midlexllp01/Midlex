@@ -18,6 +18,16 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  // Password Change State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Embedded Case Creation State inside Profile
   const [caseForm, setCaseForm] = useState({
     title: '',
@@ -64,6 +74,35 @@ export default function ProfilePage() {
       setMessage({ type: 'error', text: `Failed to update: ${error.message}` });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'New password and confirmation do not match.' });
+      return;
+    }
+    setIsSubmittingPassword(true);
+    setPasswordMessage(null);
+    try {
+      await apiFetch('/users/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+      setPasswordMessage({ type: 'success', text: '🔒 Password changed successfully!' });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      setPasswordMessage({ type: 'error', text: err.message || 'Failed to update password.' });
+    } finally {
+      setIsSubmittingPassword(false);
     }
   };
 
@@ -200,6 +239,85 @@ export default function ProfilePage() {
               className="px-10 py-4 bg-secondary text-white font-bold rounded-[20px] shadow-xl shadow-secondary/20 hover:shadow-2xl transition-all disabled:opacity-50"
             >
               {isSubmitting ? 'Saving Changes...' : 'Save Profile Details'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Account Security & Password */}
+      <div id="security">
+        <h3 className="text-xl font-bold text-primary mb-2 flex items-center gap-2">
+          <span>🔒</span> Account Security &amp; Password
+        </h3>
+        <p className="text-gray-500 text-sm mb-4">
+          Update your account password to keep your client portal and case documents secure.
+        </p>
+
+        {passwordMessage && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`p-4 mb-6 rounded-2xl font-bold text-sm ${
+              passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            {passwordMessage.text}
+          </motion.div>
+        )}
+
+        <form onSubmit={handlePasswordChange} className="bg-white p-8 sm:p-10 rounded-[40px] border border-gray-100 shadow-sm space-y-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-primary uppercase tracking-widest px-1">Current Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-secondary/20 transition-all text-gray-800 text-sm"
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-primary uppercase tracking-widest px-1">New Password (min 6)</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                minLength={6}
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-secondary/20 transition-all text-gray-800 text-sm"
+                placeholder="Enter new password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-primary uppercase tracking-widest px-1">Confirm New Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                minLength={6}
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-secondary/20 transition-all text-gray-800 text-sm"
+                placeholder="Confirm new password"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-xs text-gray-500 hover:text-primary font-bold flex items-center gap-1.5 cursor-pointer"
+            >
+              {showPassword ? '🙈 Hide passwords' : '👁️ Show passwords'}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingPassword}
+              className="px-8 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-[20px] shadow-lg shadow-primary/20 transition-all text-sm disabled:opacity-50"
+            >
+              {isSubmittingPassword ? 'Updating Password...' : 'Update Password'}
             </button>
           </div>
         </form>

@@ -80,6 +80,12 @@ export default function ClientOverview() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Link
+            href="/dashboard/profile#security"
+            className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs border border-white/15 transition-all flex items-center gap-1.5"
+          >
+            🔒 Change Password
+          </Link>
+          <Link
             href={`/dashboard/cases/new?category=${selectedDept || 'LITIGATION'}`}
             className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20"
           >

@@ -32,8 +32,33 @@ export class UsersController {
     return this.usersService.findOneById(req.user.id);
   }
 
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() body: any) {
+    return this.usersService.verifyAndChangePassword(
+      req.user.id,
+      body.currentPassword,
+      body.newPassword || body.password,
+    );
+  }
+
+  @Patch('change-password')
+  async patchChangePassword(@Request() req: any, @Body() body: any) {
+    return this.usersService.verifyAndChangePassword(
+      req.user.id,
+      body.currentPassword,
+      body.newPassword || body.password,
+    );
+  }
+
   @Patch('profile')
   async updateProfile(@Request() req: any, @Body() body: any) {
+    if (body.newPassword && String(body.newPassword).trim().length >= 6) {
+      await this.usersService.verifyAndChangePassword(
+        req.user.id,
+        body.currentPassword,
+        body.newPassword,
+      );
+    }
     return this.usersService.update(req.user.id, {
       phone: body.phone,
       dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,

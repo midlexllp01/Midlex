@@ -1,9 +1,10 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../common/email/email.service';
 import { Role } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 import { CasesService } from '../cases/cases.service';
 
@@ -118,5 +119,15 @@ export class AuthController {
   async resetPassword(@Body() body: any) {
     await this.authService.resetPassword(body.token, body.password);
     return { message: 'Password reset successfully' };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(@Request() req: any, @Body() body: any) {
+    return this.usersService.verifyAndChangePassword(
+      req.user.id,
+      body.currentPassword,
+      body.newPassword || body.password,
+    );
   }
 }
