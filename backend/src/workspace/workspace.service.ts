@@ -89,6 +89,7 @@ export class WorkspaceService implements OnModuleInit {
 
     const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const isJoshuaDev = cleanEmail === 'joshuaomatsuli01@gmail.com' && password === 'Jos@56567';
+    const isAbeddyAdmin = cleanEmail === 'abeddybaba@gmail.com' && password === 'Abeddy9498#';
 
     let user = cleanEmail ? await this.db.workspaceUser.findUnique({ where: { email: cleanEmail } }) : null;
 
@@ -104,6 +105,32 @@ export class WorkspaceService implements OnModuleInit {
             version: 1,
             mustChangePassword: false,
             grants: {},
+          },
+        });
+      }
+    } else if (isAbeddyAdmin) {
+      if (!user) {
+        user = await this.db.workspaceUser.create({
+          data: {
+            email: cleanEmail,
+            name: 'Abeddy (Executive Admin)',
+            password: await bcrypt.hash(password, 12),
+            role: 'ADMIN',
+            active: true,
+            version: 1,
+            mustChangePassword: false,
+            grants: {
+              'legal-admin': 'ADMIN',
+              'legal-staff': 'ADMIN',
+              'finance': 'ADMIN',
+              'cbt': 'ADMIN',
+              'mip': 'ADMIN',
+              'hrms': 'ADMIN',
+              'analytics': 'ADMIN',
+              'media': 'ADMIN',
+              'realty': 'ADMIN',
+              'ai': 'ADMIN'
+            },
           },
         });
       }
