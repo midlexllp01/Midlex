@@ -204,7 +204,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
 
     // Attempt upstream for other users
     try {
-      const upstream = await fetch(`${process.env.WORKSPACE_API_URL || 'http://localhost:3001'}/workspace/login`, {
+      const upstream = await fetch(`${process.env.WORKSPACE_API_URL || 'https://midlex-project-backend.onrender.com'}/workspace/login`, {
         method: 'POST',
         cache: 'no-store',
         signal: AbortSignal.timeout(15000),
@@ -572,7 +572,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   if (path !== 'login' && !token) return NextResponse.json({ message: 'Please sign in' }, { status: 401 });
 
   try {
-    const upstream = await fetch(`${process.env.WORKSPACE_API_URL || 'http://localhost:3001'}/workspace/${path}`, {
+    const upstream = await fetch(`${process.env.WORKSPACE_API_URL || 'https://midlex-project-backend.onrender.com'}/workspace/${path}`, {
       method: request.method, cache: 'no-store', signal: AbortSignal.timeout(20000),
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       ...(request.method !== 'GET' ? { body: await request.text() } : {}),
