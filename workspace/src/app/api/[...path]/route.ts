@@ -30,6 +30,46 @@ const DEV_PROJECT_URLS: Record<string, string> = {
   'ai': 'https://ai.midlex.xyz'
 };
 
+const DEV_PROJECT_PATHS: Record<string, { admin: string; user: string }> = {
+  'legal-admin': { admin: '/dashboard', user: '/dashboard' },
+  'legal-staff': { admin: '/dashboard', user: '/dashboard' },
+  'finance': { admin: '/dashboard', user: '/dashboard' },
+  'cbt': { admin: '/dashboard/admin', user: '/dashboard' },
+  'mip': { admin: '/dashboard/admin', user: '/dashboard' },
+  'hrms': { admin: '/', user: '/' },
+  'analytics': { admin: '/', user: '/' },
+  'media': { admin: '/', user: '/' },
+  'realty': { admin: '/admin', user: '/' },
+  'ai': { admin: '/', user: '/' }
+};
+
+function createSsoLaunchUrl(projectId: string, user: { id: string; name: string; email: string; role: string }, userAccess: 'ADMIN' | 'USER') {
+  const baseUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
+  const paths = DEV_PROJECT_PATHS[projectId] || { admin: '/dashboard', user: '/dashboard' };
+  const targetPath = userAccess === 'ADMIN' ? paths.admin : paths.user;
+  const ssoPayload = {
+    token: `sso_${user.id}_${Date.now()}`,
+    user: {
+      id: user.id,
+      workspaceId: user.id,
+      name: user.name,
+      email: user.email,
+      role: userAccess === 'ADMIN' ? 'ADMIN' : 'STAFF',
+      department: 'GENERAL',
+      status: 'ACTIVE'
+    },
+    access: userAccess,
+    project: projectId,
+    path: targetPath,
+    exp: Date.now() + 300000,
+  };
+  const ssoStr = Buffer.from(JSON.stringify(ssoPayload)).toString('base64');
+  if (projectId === 'ai') {
+    return `${baseUrl}/#sso=${ssoStr}`;
+  }
+  return `${baseUrl}/sso#sso=${ssoStr}`;
+}
+
 let userPasswords: Record<string, string> = {
   'joshuaomatsuli01@gmail.com': 'Jos@56567',
   'abeddybaba@gmail.com': 'Abeddy9498#',
@@ -269,8 +309,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
 
     if (path.startsWith('launch/')) {
       const projectId = path.replace('launch/', '');
-      const launchUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
-      return NextResponse.json({ url: launchUrl }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+      const user = {
+        id: 'usr-dev-joshua',
+        name: 'Joshua Omatsuli',
+        email: 'joshuaomatsuli01@gmail.com',
+        role: 'DEVELOPER'
+      };
+      const url = createSsoLaunchUrl(projectId, user, 'ADMIN');
+      return NextResponse.json({ url }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (path === 'logout') {
@@ -371,8 +417,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
 
     if (path.startsWith('launch/')) {
       const projectId = path.replace('launch/', '');
-      const launchUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
-      return NextResponse.json({ url: launchUrl }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+      const user = {
+        id: 'adm-004',
+        name: 'Abeddy (Executive Admin)',
+        email: 'abeddybaba@gmail.com',
+        role: 'ADMIN'
+      };
+      const url = createSsoLaunchUrl(projectId, user, 'ADMIN');
+      return NextResponse.json({ url }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
     }
 
     if (path === 'logout') {
@@ -466,8 +518,9 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
 
       if (path.startsWith('launch/')) {
         const projectId = path.replace('launch/', '');
-        const launchUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
-        return NextResponse.json({ url: launchUrl }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+        const userAccess: 'ADMIN' | 'USER' = (user.grants && (user.grants as Record<string, any>)[projectId]) || (user.role === 'ADMIN' ? 'ADMIN' : 'USER');
+        const url = createSsoLaunchUrl(projectId, user, userAccess);
+        return NextResponse.json({ url }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
       }
 
       if (path === 'logout') {
