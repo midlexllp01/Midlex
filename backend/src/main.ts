@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { mountSubsystems } from './subsystems/index.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -38,6 +39,8 @@ async function bootstrap() {
         origin.endsWith('.this.xyz') ||
         origin.includes('thispage.xyz') ||
         origin.includes('this.xyz') ||
+        origin.endsWith('.midlex.xyz') ||
+        origin.includes('midlex.xyz') ||
         origin.endsWith('.vercel.app') ||
         origin.includes('localhost') ||
         origin.includes('127.0.0.1')
@@ -56,6 +59,9 @@ async function bootstrap() {
       forbidUnknownValues: false,
     }),
   );
+
+  const expressApp = app.getHttpAdapter().getInstance();
+  mountSubsystems(expressApp);
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
   await app.listen(port, '0.0.0.0');

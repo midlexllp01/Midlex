@@ -1,0 +1,195 @@
+{
+  "users": {
+    "e6082fd7-d035-4a5a-997b-21e0669e4e60": {
+      "email": "abeddybaba@gmail.com",
+      "name": "Super Admin",
+      "password": "$2b$10$hQiSuLYw3NlJ5kZwDtrBNOmvNZhvT/4UnSqMWAzBEg7J3ADokxVyu",
+      "role": "ADMIN",
+      "phone": null,
+      "id": "e6082fd7-d035-4a5a-997b-21e0669e4e60",
+      "createdAt": "2026-10-19T13:29:40.374Z",
+      "updatedAt": "2026-10-19T13:46:16.659Z"
+    },
+    "62bd0121-1e54-46bb-a1d8-87d04b30ee32": {
+      "email": "midlexllp01@gmail.com",
+      "name": "Super Admin (Legacy)",
+      "password": "$2b$10$o9KSjBR/aJxS7pRsEbvhVuRjzlwR8Wj8l74JNuEcWxYAd9p4tOgUW",
+      "role": "ADMIN",
+      "phone": null,
+      "id": "62bd0121-1e54-46bb-a1d8-87d04b30ee32",
+      "createdAt": "2026-10-19T13:29:40.536Z",
+      "updatedAt": "2026-10-19T13:46:16.989Z"
+    },
+    "5245ddf2-73aa-4797-bbea-db943479f964": {
+      "email": "lawyer1@midlex.com",
+      "name": "Barr. Adebayo",
+      "password": "$2b$10$OGWPLONvzjbxX3KT1VM7T.ABcb655EPwlSt9/E.xCgjZQ/32RjuZ2",
+      "role": "LAWYER",
+      "phone": "08012345678",
+      "id": "5245ddf2-73aa-4797-bbea-db943479f964",
+      "createdAt": "2026-10-19T13:29:40.679Z",
+      "updatedAt": "2026-10-19T13:46:17.187Z"
+    },
+    "db10d98c-60bc-4ca6-85f6-29576e147d68": {
+      "email": "samson@midlex.com",
+      "name": "Samson Sabbat",
+      "password": "$2b$10$NL.tpVfggbP/98q0DD07H.z7DKTanBO6g1XMrFAjfgxDBGoUmS9Ni",
+      "role": "LAWYER",
+      "phone": "08022223333",
+      "id": "db10d98c-60bc-4ca6-85f6-29576e147d68",
+      "createdAt": "2026-10-19T13:29:40.836Z",
+      "updatedAt": "2026-10-19T13:46:17.312Z"
+    },
+    "8279e9e8-fb94-42ea-9524-9f86bada3398": {
+      "email": "accountant@midlex.com",
+      "name": "Chief Accountant (Finance)",
+      "password": "$2b$10$yJ4KQTETDMLMyixZmrn7UeVO0.ku3k/Rx/U8j0yFUHBGl7AyNNJxi",
+      "role": "ACCOUNTANT",
+      "phone": "08098765432",
+      "id": "8279e9e8-fb94-42ea-9524-9f86bada3398",
+      "createdAt": "2026-10-19T13:29:40.963Z",
+      "updatedAt": "2026-10-19T13:46:17.433Z"
+    },
+    "de3b7be7-9fb0-4046-8ac5-1b3895d26da8": {
+      "email": "client@midlex.com",
+      "name": "Demo Client (John Doe)",
+      "password": "$2b$10$YUZL9FRtgdalD/uSz7.JB.RGsgDngrRcagYjwze3O7B1qRn3Pgkoe",
+      "role": "CLIENT",
+      "phone": "08033334444",
+      "id": "de3b7be7-9fb0-4046-8ac5-1b3895d26da8",
+      "createdAt": "2026-10-19T13:29:41.156Z",
+      "updatedAt": "2026-10-19T13:46:17.567Z"
+    },
+    "d0408638-fef5-4a00-a79f-21afcab324c7": {
+      "email": "user@midlex.com",
+      "name": "Standard User (Jane Doe)",
+      "password": "$2b$10$g1PFAOOKMfYwDDFARZ8Vw.duySq2JbJHewTeT7QySlIRtmwWyMNFS",
+      "role": "CLIENT",
+      "phone": "08055556666",
+      "id": "d0408638-fef5-4a00-a79f-21afcab324c7",
+      "createdAt": "2026-10-19T13:29:41.521Z",
+      "updatedAt": "2026-10-19T13:46:17.723Z"
+    },
+    "e31d2ee0-9b86-4f32-b1c1-ea3b5072c810": {
+      "name": "Workspace Developer",
+      "email": "developer@midlex.local",
+      "role": "LAWYER",
+      "password": "$2b$10$hi5h.E/UeL73EFfXGXzwUeMC4ypHl17y4qEOTcMRT1otGYSHOERsO",
+      "id": "e31d2ee0-9b86-4f32-b1c1-ea3b5072c810",
+      "createdAt": "2026-10-19T13:36:02.741Z",
+      "updatedAt": "2026-10-19T13:36:02.741Z"
+    }
+  },
+  "workspaceUsers": {
+    "f7529632-4484-402d-8949-e80668b7054f": {
+      "email": "developer@midlex.local",
+      "name": "Workspace Developer",
+      "password": "$2b$12$TZbThBHLV69T3l556h.p9.kuDE1fpKL.153Syms7XOm5/Ee4wwq2u",
+      "role": "DEVELOPER",
+      "active": true,
+      "version": 1,
+      "mustChangePassword": false,
+      "grants": {},
+      "id": "f7529632-4484-402d-8949-e80668b7054f",
+      "createdAt": "2026-10-19T13:29:42.435Z",
+      "updatedAt": "2026-10-19T13:29:42.435Z"
+    }
+  },
+  "directory": {
+    "settings": {
+      "id": "settings",
+      "teams": [
+        "TEAM ANCHOR",
+        "TEAM ALPHA",
+        "TITAN LITIGATION",
+        "MARITIME PRACTICE GROUP",
+        "CORPORATE DISPUTE TEAM"
+      ],
+      "courts": [
+        "HIGH COURT BENIN CITY",
+        "HIGH COURT OKADA",
+        "HIGH COURT EKIADOLOR",
+        "EKIADOLOR MAGISTRATE COURT",
+        "FEDERAL HIGH COURT",
+        "HIGH COURT",
+        "MAGISTRATE COURT OGBESON",
+        "MAGISTRATE COURT OREDO",
+        "MAGISTRATE COURT EGOR",
+        "HIGH COURT WARRI",
+        "HIGH COURT ABUDU",
+        "FEDERAL HIGH COURT BENIN",
+        "HIGH COURT BENIN",
+        "APPEAL COURT BENIN CITY",
+        "NATIONAL INDUSTRIAL COURT BENIN CITY",
+        "AREA CUSTOMARY COURT EHOR",
+        "CUSTOMARY COURT URHONIGBE",
+        "HIGH COURT EHOR"
+      ],
+      "createdAt": "2026-10-19T13:29:42.445Z",
+      "updatedAt": "2026-10-19T13:29:42.445Z"
+    }
+  },
+  "workspaceAudit": {
+    "61477fa8-66af-4b24-962c-ad242527fc7a": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "SIGNED_IN",
+      "target": "f7529632-4484-402d-8949-e80668b7054f",
+      "id": "61477fa8-66af-4b24-962c-ad242527fc7a",
+      "createdAt": "2026-10-19T13:32:48.126Z",
+      "updatedAt": "2026-10-19T13:32:48.126Z"
+    },
+    "b10cfc72-1de5-4c4d-9f94-6115d5451865": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "SIGNED_IN",
+      "target": "f7529632-4484-402d-8949-e80668b7054f",
+      "id": "b10cfc72-1de5-4c4d-9f94-6115d5451865",
+      "createdAt": "2026-10-19T13:34:21.041Z",
+      "updatedAt": "2026-10-19T13:34:21.041Z"
+    },
+    "7ef94aa4-fe77-46bc-980c-181556c1cd4f": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "SIGNED_IN",
+      "target": "f7529632-4484-402d-8949-e80668b7054f",
+      "id": "7ef94aa4-fe77-46bc-980c-181556c1cd4f",
+      "createdAt": "2026-10-19T13:34:21.646Z",
+      "updatedAt": "2026-10-19T13:34:21.646Z"
+    },
+    "cbab0b27-5dfa-4bb0-a230-ec029053de54": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "PROJECT_OPENED",
+      "target": "mip",
+      "id": "cbab0b27-5dfa-4bb0-a230-ec029053de54",
+      "createdAt": "2026-10-19T13:35:42.282Z",
+      "updatedAt": "2026-10-19T13:35:42.282Z"
+    },
+    "e53aa0a5-a999-447a-ad92-780406436318": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "SIGNED_IN",
+      "target": "f7529632-4484-402d-8949-e80668b7054f",
+      "id": "e53aa0a5-a999-447a-ad92-780406436318",
+      "createdAt": "2026-10-19T13:45:11.887Z",
+      "updatedAt": "2026-10-19T13:45:11.887Z"
+    },
+    "b4d07559-9ae5-468f-b00e-dd802ac863a2": {
+      "actorId": "f7529632-4484-402d-8949-e80668b7054f",
+      "action": "SIGNED_IN",
+      "target": "f7529632-4484-402d-8949-e80668b7054f",
+      "id": "b4d07559-9ae5-468f-b00e-dd802ac863a2",
+      "createdAt": "2026-10-19T13:45:13.492Z",
+      "updatedAt": "2026-10-19T13:45:13.492Z"
+    }
+  },
+  "workspaceCodes": {
+    "70c5d22c00a1f5b9ae9da7a121d4224f54ef0fc3083437915cd364c37c138b26": {
+      "id": "70c5d22c00a1f5b9ae9da7a121d4224f54ef0fc3083437915cd364c37c138b26",
+      "userId": "f7529632-4484-402d-8949-e80668b7054f",
+      "project": "mip",
+      "version": 1,
+      "accessVersion": 1,
+      "expiresAt": "2026-10-19T13:36:42.278Z",
+      "usedAt": "2026-10-19T13:36:02.345Z",
+      "createdAt": "2026-10-19T13:35:42.278Z",
+      "updatedAt": "2026-10-19T13:35:42.278Z"
+    }
+  }
+}

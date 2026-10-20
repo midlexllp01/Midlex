@@ -187,6 +187,15 @@ export class WorkspaceService implements OnModuleInit {
     return this.safe(user);
   }
 
+  async delete(actor: any, id: string) {
+    this.developer(actor);
+    const target = await this.db.workspaceUser.findUnique({ where: { id } });
+    if (!target || target.role === 'DEVELOPER') throw new ForbiddenException('The owner account cannot be deleted');
+    await this.db.workspaceUser.delete({ where: { id } });
+    await this.audit(actor.id, 'USER_DELETED', id);
+    return { ok: true, deletedId: id };
+  }
+
   async changePassword(user: any, body: any) {
     if (typeof body.password !== 'string' || body.password.length < 12 || !await bcrypt.compare(body.currentPassword || '', user.password)) throw new BadRequestException('Check your current password and use a new password of at least 12 characters');
     if (await bcrypt.compare(body.password, user.password)) throw new BadRequestException('Choose a different password');

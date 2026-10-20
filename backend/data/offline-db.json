@@ -1,0 +1,98 @@
+{
+  "users": {
+    "fc93ef00-b4a5-45d4-a036-4cd7aff15207": {
+      "email": "midlexllp01@gmail.com",
+      "name": "Super Admin",
+      "password": "$2b$10$aOsM21dRv2pmy3bKy30qTu9WQ.MT3tQXU9UqP76gxorCJ11PwqaIi",
+      "role": "ADMIN",
+      "phone": null,
+      "id": "fc93ef00-b4a5-45d4-a036-4cd7aff15207",
+      "createdAt": "2026-09-25T10:53:46.080Z",
+      "updatedAt": "2026-10-09T12:42:52.824Z"
+    },
+    "dd59b9f1-e1c3-4183-85d8-c8949d9ea771": {
+      "email": "lawyer1@midlex.com",
+      "name": "Barr. Adebayo",
+      "password": "$2b$10$gJixou./Aot/fSChnLkeuOaEVF2Zvwq/gXwEIxl.oMCbva8KraNRe",
+      "role": "LAWYER",
+      "phone": "08012345678",
+      "id": "dd59b9f1-e1c3-4183-85d8-c8949d9ea771",
+      "createdAt": "2026-09-25T10:53:46.197Z",
+      "updatedAt": "2026-10-09T12:42:53.008Z"
+    },
+    "1b8fc30b-512e-4898-8113-1854ecf51a00": {
+      "email": "accountant@midlex.com",
+      "name": "Chief Accountant (Finance)",
+      "password": "$2b$10$AUL3n6hqQ8mcrfhO2LTz3eLaAMNPoAkh/8NNpmhkZ3Xp6xiOhEMJy",
+      "role": "ACCOUNTANT",
+      "phone": "08098765432",
+      "id": "1b8fc30b-512e-4898-8113-1854ecf51a00",
+      "createdAt": "2026-09-25T10:53:46.313Z",
+      "updatedAt": "2026-10-09T12:42:53.407Z"
+    },
+    "9c8b3953-c002-46a8-b420-af63e39d0b89": {
+      "email": "client@midlex.com",
+      "name": "Demo Client (John Doe)",
+      "password": "$2b$10$iZyyii5jlX6elaWUxy7/f.clhupIZ0egmhWZMxzoM3qlHAlrZOKw6",
+      "role": "CLIENT",
+      "phone": "08033334444",
+      "id": "9c8b3953-c002-46a8-b420-af63e39d0b89",
+      "createdAt": "2026-09-25T10:53:46.433Z",
+      "updatedAt": "2026-10-09T12:42:53.589Z"
+    },
+    "61a81be2-03e0-432e-975d-bc04a6cb2f96": {
+      "email": "user@midlex.com",
+      "name": "Standard User (Jane Doe)",
+      "password": "$2b$10$cKc6tuZu/MmujjjtKnLIOOtC3OAqRL7Ew5qRvdB8QtlUEkYEo0wnu",
+      "role": "CLIENT",
+      "phone": "08055556666",
+      "id": "61a81be2-03e0-432e-975d-bc04a6cb2f96",
+      "createdAt": "2026-09-25T10:53:46.546Z",
+      "updatedAt": "2026-10-09T12:42:53.801Z"
+    },
+    "fb2d8f05-9cdb-4e0b-a27a-81fd77c5574d": {
+      "email": "samson@midlex.com",
+      "name": "Samson Sabbat",
+      "password": "$2b$10$W3r47G5aJwSrQuVpN6d.WeoaQT.PvPvoFN457rkWjfKMGNLgB2WlC",
+      "role": "LAWYER",
+      "phone": "08022223333",
+      "id": "fb2d8f05-9cdb-4e0b-a27a-81fd77c5574d",
+      "createdAt": "2026-10-09T02:43:49.358Z",
+      "updatedAt": "2026-10-09T12:42:53.217Z"
+    }
+  },
+  "directory": {
+    "settings": {
+      "id": "settings",
+      "teams": [
+        "TEAM ANCHOR",
+        "TEAM ALPHA",
+        "TITAN LITIGATION",
+        "MARITIME PRACTICE GROUP",
+        "CORPORATE DISPUTE TEAM"
+      ],
+      "courts": [
+        "HIGH COURT BENIN CITY",
+        "HIGH COURT OKADA",
+        "HIGH COURT EKIADOLOR",
+        "EKIADOLOR MAGISTRATE COURT",
+        "FEDERAL HIGH COURT",
+        "HIGH COURT",
+        "MAGISTRATE COURT OGBESON",
+        "MAGISTRATE COURT OREDO",
+        "MAGISTRATE COURT EGOR",
+        "HIGH COURT WARRI",
+        "HIGH COURT ABUDU",
+        "FEDERAL HIGH COURT BENIN",
+        "HIGH COURT BENIN",
+        "APPEAL COURT BENIN CITY",
+        "NATIONAL INDUSTRIAL COURT BENIN CITY",
+        "AREA CUSTOMARY COURT EHOR",
+        "CUSTOMARY COURT URHONIGBE",
+        "HIGH COURT EHOR"
+      ],
+      "createdAt": "2026-09-25T10:53:46.553Z",
+      "updatedAt": "2026-09-25T10:53:46.553Z"
+    }
+  }
+}

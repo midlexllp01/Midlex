@@ -18,6 +18,7 @@ import { PaymentAccountsModule } from './payment-accounts/payment-accounts.modul
 import { NotificationsModule } from './notifications/notifications.module';
 import { DirectoryModule } from './directory/directory.module';
 import { RealtyModule } from './realty/realty.module';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { RealtyModule } from './realty/realty.module';
     NotificationsModule,
     DirectoryModule,
     RealtyModule,
+    WorkspaceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

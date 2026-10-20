@@ -1,0 +1,25 @@
+{
+  "visits": [],
+  "registrations": [],
+  "questions": [],
+  "articles": [
+    {
+      "id": "art_seed_1",
+      "title": "Governor’s Power to Revoke Certificate of Occupancy",
+      "subtitle": "An analysis of Section 28 Land Use Act revocation criteria and compensation rights.",
+      "thumbnail": "property",
+      "content": "Under Section 28 of the Land Use Act of 1978, the Governor of a State in Nigeria holds the power to revoke a Right of Occupancy (C of O) for 'overriding public interest'. \n\nHowever, this power is not absolute. The Act mandates that:\n1. **Public Purpose**: The revocation must be for a genuine public purpose (e.g. building roads, schools, hospitals, or extracting minerals).\n2. **Proper Notice**: The holder must be served a valid, formal notice of revocation.\n3. **Compensation**: The holder is constitutionally and statutorily entitled to fair compensation for the value of their unexhausted improvements (buildings, crops, installations) on the land.\n\nIf you receive a revocation notice, it is crucial to verify the notice was served appropriately and that the government’s purpose matches legal definitions before negotiating compensation valuation.",
+      "audience": "all",
+      "timestamp": 1791118818077
+    },
+    {
+      "id": "art_seed_2",
+      "title": "Your Fundamental Rights During A Police Arrest",
+      "subtitle": "Know your rights under Section 34 & 35 of the 1999 Constitution (as amended).",
+      "thumbnail": "rights",
+      "content": "The 1999 Constitution of Nigeria protects your personal liberty and human dignity. If you are stopped or arrested by law enforcement, remember these critical safeguards:\n\n- **Right to Silence (Sec 35(2))**: You have the right to remain silent and refuse to answer questions until you consult a lawyer.\n- **Dignity of Person (Sec 34)**: You must not be subjected to torture, cruel, or inhuman treatment.\n- **Bail is Free**: Under Nigerian law, bail is officially free. Holding a suspect beyond 24-48 hours without bringing them before a court of competent jurisdiction is a constitutional violation.\n- **Right to be Informed (Sec 35(3))**: You must be informed immediately, in the language you understand, of the reason for your arrest.\n\nAlways remain calm and professional, ask to contact your legal counsel immediately, and avoid signing any statement without a lawyer present.",
+      "audience": "subscribed",
+      "timestamp": 1791378018077
+    }
+  ]
+}
