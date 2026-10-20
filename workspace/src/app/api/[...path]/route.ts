@@ -391,7 +391,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     const user = activeWorkspaceUsers.find(u => u.id === userId);
     if (user) {
       if (path === 'me') {
-        const userProjects = DEV_PROJECTS.filter(p => user.role === 'ADMIN' || (user.grants && (user.grants as Record<string, any>)[p.id]));
+        const userProjects = DEV_PROJECTS.filter(p => user.role === 'ADMIN' || (user.grants && (user.grants as Record<string, any>)[p.id]))
+          .map(p => {
+            const explicit = user.grants && (user.grants as Record<string, any>)[p.id];
+            return {
+              ...p,
+              access: explicit || (user.role === 'ADMIN' ? 'ADMIN' : 'USER')
+            };
+          });
         return NextResponse.json({
           user,
           projects: userProjects.length > 0 ? userProjects : DEV_PROJECTS.slice(0, 4),
