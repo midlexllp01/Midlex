@@ -18,7 +18,7 @@ export default function WorkspaceSignIn() {
 
     if (ssoRaw) {
       try {
-        const rawJson = typeof window !== 'undefined' && window.atob ? atob(ssoRaw) : Buffer.from(ssoRaw, 'base64').toString('utf8');
+        const rawJson = atob(ssoRaw);
         const data = JSON.parse(decodeURIComponent(escape(rawJson)));
         const user = data.user;
         const admin = data.access === 'ADMIN' || user.role === 'DEVELOPER' || user.role === 'ADMIN';
