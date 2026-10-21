@@ -17,17 +17,17 @@ const DEV_PROJECTS = [
   { id: 'ai', name: 'Midlex AI', category: 'Research', description: 'Legal research assistance, documents and editorial administration.', access: 'ADMIN' }
 ];
 
-const DEV_PROJECT_URLS: Record<string, string> = {
-  'legal-admin': 'https://admin-midlex-llp-lawfirm.vercel.app',
-  'legal-staff': 'https://lawyers-midlex-llp-lawfirm.vercel.app',
-  'finance': 'https://payment-portal-midlex-llp-lawfirm.vercel.app',
-  'cbt': 'https://cbt.midlex.xyz',
-  'mip': 'https://midlex-mip.vercel.app',
-  'hrms': 'https://admin-midlex-hrms.vercel.app',
-  'analytics': 'https://midlex-analytics-sandy.vercel.app',
-  'media': 'https://midlex-media-kappa.vercel.app',
-  'realty': 'https://reality.midlex.xyz',
-  'ai': 'https://ai.midlex.xyz'
+const DEV_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
+  'legal-admin': { admin: 'https://admin-midlex-llp-lawfirm.vercel.app', user: 'https://admin-midlex-llp-lawfirm.vercel.app' },
+  'legal-staff': { admin: 'https://lawyers-midlex-llp-lawfirm.vercel.app', user: 'https://lawyers-midlex-llp-lawfirm.vercel.app' },
+  'finance': { admin: 'https://payment-portal-midlex-llp-lawfirm.vercel.app', user: 'https://payment-portal-midlex-llp-lawfirm.vercel.app' },
+  'cbt': { admin: 'https://midlex-cbt.vercel.app', user: 'https://midlex-cbt.vercel.app' },
+  'mip': { admin: 'https://midlex-mip.vercel.app', user: 'https://midlex-mip.vercel.app' },
+  'hrms': { admin: 'https://admin-midlex-hrms.vercel.app', user: 'https://midlex-hrms.vercel.app' },
+  'analytics': { admin: 'https://midlex-analytics-sandy.vercel.app', user: 'https://midlex-analytics-sandy.vercel.app' },
+  'media': { admin: 'https://midlex-media-kappa.vercel.app', user: 'https://midlex-media-kappa.vercel.app' },
+  'realty': { admin: 'https://reality.midlex.xyz', user: 'https://reality.midlex.xyz' },
+  'ai': { admin: 'https://ai.midlex.xyz', user: 'https://ai.midlex.xyz' }
 };
 
 const DEV_PROJECT_PATHS: Record<string, { admin: string; user: string }> = {
@@ -36,7 +36,7 @@ const DEV_PROJECT_PATHS: Record<string, { admin: string; user: string }> = {
   'finance': { admin: '/dashboard', user: '/dashboard' },
   'cbt': { admin: '/dashboard/admin', user: '/dashboard' },
   'mip': { admin: '/dashboard/admin', user: '/dashboard' },
-  'hrms': { admin: '/', user: '/' },
+  'hrms': { admin: '/', user: '/dashboard' },
   'analytics': { admin: '/', user: '/' },
   'media': { admin: '/', user: '/' },
   'realty': { admin: '/admin', user: '/' },
@@ -44,7 +44,8 @@ const DEV_PROJECT_PATHS: Record<string, { admin: string; user: string }> = {
 };
 
 function createSsoLaunchUrl(projectId: string, user: { id: string; name: string; email: string; role: string }, userAccess: 'ADMIN' | 'USER') {
-  const baseUrl = DEV_PROJECT_URLS[projectId] || 'https://midlex.xyz';
+  const urlEntry = DEV_PROJECT_URLS[projectId] || { admin: 'https://developer.midlex.xyz', user: 'https://developer.midlex.xyz' };
+  const baseUrl = userAccess === 'ADMIN' ? urlEntry.admin : urlEntry.user;
   const paths = DEV_PROJECT_PATHS[projectId] || { admin: '/dashboard', user: '/dashboard' };
   const targetPath = userAccess === 'ADMIN' ? paths.admin : paths.user;
   const ssoPayload = {
@@ -54,20 +55,21 @@ function createSsoLaunchUrl(projectId: string, user: { id: string; name: string;
       workspaceId: user.id,
       name: user.name,
       email: user.email,
-      role: userAccess === 'ADMIN' ? 'ADMIN' : 'STAFF',
+      role: userAccess === 'ADMIN' ? 'ADMIN' : (projectId === 'legal-staff' ? 'LAWYER' : (user.role || 'STAFF')),
       department: 'GENERAL',
       status: 'ACTIVE'
     },
     access: userAccess,
     project: projectId,
     path: targetPath,
-    exp: Date.now() + 300000,
+    exp: Date.now() + 3600000,
   };
   const ssoStr = Buffer.from(JSON.stringify(ssoPayload)).toString('base64');
+  const code = Buffer.from(`${user.id}:${projectId}:${Date.now()}`).toString('base64url');
   if (projectId === 'ai') {
-    return `${baseUrl}/#sso=${ssoStr}`;
+    return `${baseUrl}/#sso=${ssoStr}&code=${code}`;
   }
-  return `${baseUrl}/sso#sso=${ssoStr}`;
+  return `${baseUrl}/sso#sso=${ssoStr}&code=${code}`;
 }
 
 let userPasswords: Record<string, string> = {

@@ -19,6 +19,62 @@ export const PROJECTS = [
   { id: 'ai', name: 'Midlex AI', category: 'Research', description: 'Legal research assistance, documents and editorial administration.', port: 5173, path: '/' },
 ];
 
+export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
+  'legal-admin': {
+    admin: 'https://admin-midlex-llp-lawfirm.vercel.app',
+    user: 'https://admin-midlex-llp-lawfirm.vercel.app',
+  },
+  'legal-staff': {
+    admin: 'https://lawyers-midlex-llp-lawfirm.vercel.app',
+    user: 'https://lawyers-midlex-llp-lawfirm.vercel.app',
+  },
+  'finance': {
+    admin: 'https://payment-portal-midlex-llp-lawfirm.vercel.app',
+    user: 'https://payment-portal-midlex-llp-lawfirm.vercel.app',
+  },
+  'cbt': {
+    admin: 'https://midlex-cbt.vercel.app',
+    user: 'https://midlex-cbt.vercel.app',
+  },
+  'mip': {
+    admin: 'https://midlex-mip.vercel.app',
+    user: 'https://midlex-mip.vercel.app',
+  },
+  'hrms': {
+    admin: 'https://admin-midlex-hrms.vercel.app',
+    user: 'https://midlex-hrms.vercel.app',
+  },
+  'analytics': {
+    admin: 'https://midlex-analytics-sandy.vercel.app',
+    user: 'https://midlex-analytics-sandy.vercel.app',
+  },
+  'media': {
+    admin: 'https://midlex-media-kappa.vercel.app',
+    user: 'https://midlex-media-kappa.vercel.app',
+  },
+  'realty': {
+    admin: 'https://reality.midlex.xyz',
+    user: 'https://reality.midlex.xyz',
+  },
+  'ai': {
+    admin: 'https://ai.midlex.xyz',
+    user: 'https://ai.midlex.xyz',
+  },
+};
+
+export const PRODUCTION_ENTRY_PATHS: Record<string, { admin: string; user: string }> = {
+  'legal-admin': { admin: '/dashboard', user: '/dashboard' },
+  'legal-staff': { admin: '/dashboard', user: '/dashboard' },
+  'finance': { admin: '/dashboard', user: '/dashboard' },
+  'cbt': { admin: '/dashboard/admin', user: '/dashboard' },
+  'mip': { admin: '/dashboard/admin', user: '/dashboard' },
+  'hrms': { admin: '/', user: '/dashboard' },
+  'analytics': { admin: '/', user: '/' },
+  'media': { admin: '/', user: '/' },
+  'realty': { admin: '/admin', user: '/' },
+  'ai': { admin: '/', user: '/' },
+};
+
 @Injectable()
 export class WorkspaceService implements OnModuleInit {
   private jwt = new JwtService();
@@ -221,22 +277,65 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   private projectUrl(project: string, access: Access) {
-    const config = PROJECTS.find(p => p.id === project)!;
     const prefix = `WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}`;
     const value = process.env[`${prefix}_${access}_URL`] || process.env[`${prefix}_URL`];
-    if (!value && process.env.NODE_ENV === 'production') throw new ServiceUnavailableException(`Configure the URL for ${project}`);
-    const url = new URL(value || `http://localhost:${config.port}`);
-    if (url.protocol !== 'https:' && !(['localhost', '127.0.0.1'].includes(url.hostname) && url.protocol === 'http:')) throw new BadRequestException('Project URL must use HTTPS');
-    return url.origin;
+    if (value) {
+      try {
+        const url = new URL(value);
+        if (url.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname)) {
+          return url.origin;
+        }
+      } catch {}
+    }
+    const fallback = PRODUCTION_PROJECT_URLS[project];
+    if (fallback) {
+      return access === 'ADMIN' ? fallback.admin : fallback.user;
+    }
+    return 'https://developer.midlex.xyz';
   }
 
   async launch(user: any, project: string) {
     const access = this.access(user, project);
     const origin = this.projectUrl(project, access);
     const code = randomBytes(32).toString('base64url');
-    await this.db.workspaceCode.create({ data: { id: createHash('sha256').update(code).digest('hex'), userId: user.id, project, version: user.version, accessVersion: user.accessVersion || 1, expiresAt: new Date(Date.now() + 60000), usedAt: null } });
+    await this.db.workspaceCode.create({
+      data: {
+        id: createHash('sha256').update(code).digest('hex'),
+        userId: user.id,
+        project,
+        version: user.version,
+        accessVersion: user.accessVersion || 1,
+        expiresAt: new Date(Date.now() + 300000),
+        usedAt: null
+      }
+    });
     await this.audit(user.id, 'PROJECT_OPENED', project);
-    return { url: `${origin}/sso#code=${code}` };
+
+    const projectPaths = PRODUCTION_ENTRY_PATHS[project] || { admin: '/dashboard', user: '/dashboard' };
+    const targetPath = access === 'ADMIN' ? projectPaths.admin : projectPaths.user;
+
+    const ssoPayload = {
+      token: `sso_${user.id}_${Date.now()}`,
+      user: {
+        id: user.id,
+        workspaceId: user.id,
+        name: user.name,
+        email: user.email,
+        role: access === 'ADMIN' ? 'ADMIN' : (user.role || 'STAFF'),
+        department: 'GENERAL',
+        status: 'ACTIVE'
+      },
+      access,
+      project,
+      path: targetPath,
+      exp: Date.now() + 3600000,
+    };
+    const ssoStr = Buffer.from(JSON.stringify(ssoPayload)).toString('base64');
+
+    if (project === 'ai') {
+      return { url: `${origin}/#sso=${ssoStr}&code=${code}` };
+    }
+    return { url: `${origin}/sso#sso=${ssoStr}&code=${code}` };
   }
 
   async redeem(project: string, code: string, secret: string) {
