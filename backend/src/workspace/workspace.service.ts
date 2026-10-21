@@ -21,40 +21,40 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://admin-midlex-llp-lawfirm.vercel.app',
-    user: 'https://admin-midlex-llp-lawfirm.vercel.app',
+    admin: 'https://legal.midlex.xyz',
+    user: 'https://legal.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://lawyers-midlex-llp-lawfirm.vercel.app',
-    user: 'https://lawyers-midlex-llp-lawfirm.vercel.app',
+    admin: 'https://lawyers.midlex.xyz',
+    user: 'https://lawyers.midlex.xyz',
   },
   'finance': {
-    admin: 'https://payment-portal-midlex-llp-lawfirm.vercel.app',
-    user: 'https://payment-portal-midlex-llp-lawfirm.vercel.app',
+    admin: 'https://finance.midlex.xyz',
+    user: 'https://finance.midlex.xyz',
   },
   'cbt': {
-    admin: 'https://midlex-cbt.vercel.app',
-    user: 'https://midlex-cbt.vercel.app',
+    admin: 'https://cbt.midlex.xyz',
+    user: 'https://cbt.midlex.xyz',
   },
   'mip': {
-    admin: 'https://midlex-mip.vercel.app',
-    user: 'https://midlex-mip.vercel.app',
+    admin: 'https://mip.midlex.xyz',
+    user: 'https://mip.midlex.xyz',
   },
   'hrms': {
-    admin: 'https://admin-midlex-hrms.vercel.app',
-    user: 'https://midlex-hrms.vercel.app',
+    admin: 'https://hrms.midlex.xyz',
+    user: 'https://hrms.midlex.xyz',
   },
   'analytics': {
-    admin: 'https://midlex-analytics-sandy.vercel.app',
-    user: 'https://midlex-analytics-sandy.vercel.app',
+    admin: 'https://analytics.midlex.xyz',
+    user: 'https://analytics.midlex.xyz',
   },
   'media': {
-    admin: 'https://midlex-media-kappa.vercel.app',
-    user: 'https://midlex-media-kappa.vercel.app',
+    admin: 'https://media.midlex.xyz',
+    user: 'https://media.midlex.xyz',
   },
   'realty': {
-    admin: 'https://reality.midlex.xyz',
-    user: 'https://reality.midlex.xyz',
+    admin: 'https://realty.midlex.xyz',
+    user: 'https://realty.midlex.xyz',
   },
   'ai': {
     admin: 'https://ai.midlex.xyz',
