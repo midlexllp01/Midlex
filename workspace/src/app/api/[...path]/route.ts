@@ -18,16 +18,16 @@ const DEV_PROJECTS = [
 ];
 
 const DEV_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
-  'legal-admin': { admin: 'https://legal.midlex.xyz', user: 'https://legal.midlex.xyz' },
-  'legal-staff': { admin: 'https://lawyers.midlex.xyz', user: 'https://lawyers.midlex.xyz' },
-  'finance': { admin: 'https://finance.midlex.xyz', user: 'https://finance.midlex.xyz' },
-  'cbt': { admin: 'https://cbt.midlex.xyz', user: 'https://cbt.midlex.xyz' },
-  'mip': { admin: 'https://mip.midlex.xyz', user: 'https://mip.midlex.xyz' },
-  'hrms': { admin: 'https://hrms.midlex.xyz', user: 'https://hrms.midlex.xyz' },
-  'analytics': { admin: 'https://analytics.midlex.xyz', user: 'https://analytics.midlex.xyz' },
-  'media': { admin: 'https://media.midlex.xyz', user: 'https://media.midlex.xyz' },
-  'realty': { admin: 'https://realty.midlex.xyz', user: 'https://realty.midlex.xyz' },
-  'ai': { admin: 'https://ai.midlex.xyz', user: 'https://ai.midlex.xyz' }
+  'legal-admin': { admin: 'https://admin.legal.midlex.xyz', user: 'https://legal.midlex.xyz' },
+  'legal-staff': { admin: 'https://admin.legal.midlex.xyz', user: 'https://lawyers.midlex.xyz' },
+  'finance': { admin: 'https://admin.finance.midlex.xyz', user: 'https://finance.midlex.xyz' },
+  'cbt': { admin: 'https://admin.cbt.midlex.xyz', user: 'https://cbt.midlex.xyz' },
+  'mip': { admin: 'https://admin.mip.midlex.xyz', user: 'https://mip.midlex.xyz' },
+  'hrms': { admin: 'https://admin.hrms.midlex.xyz', user: 'https://hrms.midlex.xyz' },
+  'analytics': { admin: 'https://admin.analytics.midlex.xyz', user: 'https://analytics.midlex.xyz' },
+  'media': { admin: 'https://admin.media.midlex.xyz', user: 'https://media.midlex.xyz' },
+  'realty': { admin: 'https://admin.realty.midlex.xyz', user: 'https://realty.midlex.xyz' },
+  'ai': { admin: 'https://admin.ai.midlex.xyz', user: 'https://ai.midlex.xyz' }
 };
 
 const DEV_PROJECT_PATHS: Record<string, { admin: string; user: string }> = {

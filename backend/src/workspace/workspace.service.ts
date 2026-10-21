@@ -21,43 +21,43 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://legal.midlex.xyz',
+    admin: 'https://admin.legal.midlex.xyz',
     user: 'https://legal.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://lawyers.midlex.xyz',
+    admin: 'https://admin.legal.midlex.xyz',
     user: 'https://lawyers.midlex.xyz',
   },
   'finance': {
-    admin: 'https://finance.midlex.xyz',
+    admin: 'https://admin.finance.midlex.xyz',
     user: 'https://finance.midlex.xyz',
   },
   'cbt': {
-    admin: 'https://cbt.midlex.xyz',
+    admin: 'https://admin.cbt.midlex.xyz',
     user: 'https://cbt.midlex.xyz',
   },
   'mip': {
-    admin: 'https://mip.midlex.xyz',
+    admin: 'https://admin.mip.midlex.xyz',
     user: 'https://mip.midlex.xyz',
   },
   'hrms': {
-    admin: 'https://hrms.midlex.xyz',
+    admin: 'https://admin.hrms.midlex.xyz',
     user: 'https://hrms.midlex.xyz',
   },
   'analytics': {
-    admin: 'https://analytics.midlex.xyz',
+    admin: 'https://admin.analytics.midlex.xyz',
     user: 'https://analytics.midlex.xyz',
   },
   'media': {
-    admin: 'https://media.midlex.xyz',
+    admin: 'https://admin.media.midlex.xyz',
     user: 'https://media.midlex.xyz',
   },
   'realty': {
-    admin: 'https://realty.midlex.xyz',
+    admin: 'https://admin.realty.midlex.xyz',
     user: 'https://realty.midlex.xyz',
   },
   'ai': {
-    admin: 'https://ai.midlex.xyz',
+    admin: 'https://admin.ai.midlex.xyz',
     user: 'https://ai.midlex.xyz',
   },
 };
