@@ -277,21 +277,21 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   private projectUrl(project: string, access: Access) {
+    const fallback = PRODUCTION_PROJECT_URLS[project];
+    if (fallback) {
+      return access === 'ADMIN' ? fallback.admin : fallback.user;
+    }
     const prefix = `WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}`;
     const value = process.env[`${prefix}_${access}_URL`] || process.env[`${prefix}_URL`];
     if (value) {
       try {
         const url = new URL(value);
-        if (url.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname)) {
+        if (url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(url.hostname))) {
           return url.origin;
         }
       } catch {}
     }
-    const fallback = PRODUCTION_PROJECT_URLS[project];
-    if (fallback) {
-      return access === 'ADMIN' ? fallback.admin : fallback.user;
-    }
-    return 'https://developer.midlex.xyz';
+    return access === 'ADMIN' ? 'https://admin.midlex.xyz' : 'https://staff.midlex.xyz';
   }
 
   async launch(user: any, project: string) {

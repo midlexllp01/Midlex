@@ -580,6 +580,17 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       ...(request.method !== 'GET' ? { body: await request.text() } : {}),
     });
     const data = await upstream.json();
+    if (path.startsWith('launch/') && data && typeof data.url === 'string') {
+      const pid = path.replace('launch/', '');
+      const config = DEV_PROJECT_URLS[pid];
+      if (config && (data.url.includes('localhost') || data.url.includes('.vercel.app'))) {
+        try {
+          const parsed = new URL(data.url);
+          const base = data.url.includes('admin.') ? config.admin : (config.admin || config.user);
+          data.url = `${base}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        } catch {}
+      }
+    }
     if (data.token) {
       jar.set('midlex_workspace', data.token, {
         httpOnly: true,
