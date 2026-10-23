@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import { cert, getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
@@ -56,6 +57,8 @@ const COLLECTIONS: Record<ModelName, string> = {
 
 @Injectable()
 export class PrismaService implements OnModuleInit {
+  private isPostgres = false;
+  private prismaClient: PrismaClient | null = null;
   private isOffline = false;
   private db: any = null;
   private bucketName = process.env.FIREBASE_STORAGE_BUCKET;
@@ -80,6 +83,13 @@ export class PrismaService implements OnModuleInit {
   workspaceAudit = this.model('workspaceAudit');
 
   async mutateWorkspaceUser(id: string, change: (current: any) => Record<string, any>) {
+    if (this.isPostgres) {
+      const current = await this.findUnique('workspaceUser', { where: { id } });
+      if (!current) throw new Error('Workspace identity not found');
+      const updated = { ...current, ...change(current), updatedAt: new Date() };
+      await this.saveRow('workspaceUser', id, updated);
+      return updated;
+    }
     if (this.isOffline) {
       const current = this.fromLocal(this.localStore.workspaceUsers?.[id]);
       if (!current) throw new Error('Workspace identity not found');
@@ -101,6 +111,13 @@ export class PrismaService implements OnModuleInit {
 
   // Consume before yielding in local mode; a Firestore transaction protects multiple instances.
   async consumeWorkspaceCode(id: string) {
+    if (this.isPostgres) {
+      const row = await this.findUnique('workspaceCode', { where: { id } });
+      if (!row || row.usedAt) return null;
+      const updated = { ...row, usedAt: new Date().toISOString() };
+      await this.saveRow('workspaceCode', id, updated);
+      return updated;
+    }
     if (this.isOffline) {
       const row = this.localStore.workspaceCodes?.[id];
       if (!row || row.usedAt) return null;
@@ -118,27 +135,80 @@ export class PrismaService implements OnModuleInit {
   }
 
   constructor() {
-    const serviceAccount = this.readServiceAccount();
-    if (process.env.MIDLEX_OFFLINE === 'true' || !serviceAccount && !process.env.FIRESTORE_EMULATOR_HOST && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      this.isOffline = true;
-      console.log('[PrismaService] Running in OFFLINE local JSON database mode.');
-      this.loadLocalStore();
-    } else {
-      try {
-        this.db = getFirestore(this.app);
-      } catch (err) {
-        console.warn('[PrismaService] Failed to initialize Firebase Firestore, falling back to OFFLINE mode.', err);
-        this.isOffline = true;
-        this.loadLocalStore();
-      }
-    }
+    this.loadLocalStore();
   }
 
   async onModuleInit() {
-    if (this.isOffline) {
-      this.loadLocalStore();
+    if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() && process.env.MIDLEX_OFFLINE !== 'true') {
+      await this.initPostgres();
+    } else {
+      const serviceAccount = this.readServiceAccount();
+      if (process.env.MIDLEX_OFFLINE !== 'true' && (serviceAccount || process.env.FIRESTORE_EMULATOR_HOST || process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+        try {
+          this.db = getFirestore(this.app);
+          this.isOffline = false;
+        } catch (err) {
+          console.warn('[PrismaService] Failed to initialize Firebase Firestore, falling back to OFFLINE mode.', err);
+          this.isOffline = true;
+        }
+      } else {
+        this.isOffline = true;
+        console.log('[PrismaService] Running in OFFLINE local JSON database mode.');
+      }
     }
     await this.seedDefaultUsers();
+  }
+
+  private async initPostgres() {
+    try {
+      this.prismaClient = new PrismaClient({
+        datasources: {
+          db: {
+            url: process.env.DATABASE_URL,
+          },
+        },
+      });
+      await this.prismaClient.$connect();
+      await this.prismaClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS midlex_store (
+          collection VARCHAR(64) NOT NULL,
+          id VARCHAR(128) NOT NULL,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          PRIMARY KEY (collection, id)
+        );
+      `);
+      await this.prismaClient.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS idx_midlex_store_collection ON midlex_store(collection);
+      `);
+      this.isPostgres = true;
+      this.isOffline = false;
+      console.log('[PrismaService] Connected to PostgreSQL (Neon) database successfully! Persistence is ACTIVE.');
+
+      // Check if postgres store is empty and we have local offline data to migrate
+      const countRes: any = await this.prismaClient.$queryRawUnsafe('SELECT COUNT(*)::int as count FROM midlex_store');
+      const count = countRes?.[0]?.count || 0;
+      if (count === 0 && Object.keys(this.localStore).length > 0) {
+        console.log('[PrismaService] Migrating offline local data into PostgreSQL...');
+        for (const [colName, rows] of Object.entries(this.localStore)) {
+          for (const [rowId, rowData] of Object.entries(rows)) {
+            await this.prismaClient.$executeRawUnsafe(
+              `INSERT INTO midlex_store (collection, id, data, updated_at)
+               VALUES ($1, $2, $3::jsonb, NOW())
+               ON CONFLICT (collection, id) DO NOTHING`,
+              colName,
+              rowId,
+              JSON.stringify(rowData)
+            );
+          }
+        }
+        console.log('[PrismaService] Offline data successfully migrated into PostgreSQL!');
+      }
+    } catch (err) {
+      console.error('[PrismaService] PostgreSQL initialization failed, falling back to offline mode:', err);
+      this.isPostgres = false;
+      this.isOffline = true;
+    }
   }
 
   private async seedDefaultUsers() {
@@ -331,6 +401,17 @@ export class PrismaService implements OnModuleInit {
 
   private async getRawRows(name: ModelName): Promise<any[]> {
     const colName = COLLECTIONS[name];
+    if (this.isPostgres && this.prismaClient) {
+      try {
+        const rows: any = await this.prismaClient.$queryRawUnsafe(
+          'SELECT data FROM midlex_store WHERE collection = $1',
+          colName
+        );
+        return rows.map((r: any) => this.fromLocal(r.data));
+      } catch (err) {
+        console.warn(`[PrismaService] Error querying ${colName} from PostgreSQL:`, err);
+      }
+    }
     if (this.isOffline) {
       const map = this.localStore[colName] || {};
       return Object.values(map).map((row) => this.fromLocal(row));
@@ -341,6 +422,23 @@ export class PrismaService implements OnModuleInit {
 
   private async saveRow(name: ModelName, id: string, data: any) {
     const colName = COLLECTIONS[name];
+    if (this.isPostgres && this.prismaClient) {
+      try {
+        const jsonStr = JSON.stringify(this.toLocal(data));
+        await this.prismaClient.$executeRawUnsafe(
+          `INSERT INTO midlex_store (collection, id, data, updated_at)
+           VALUES ($1, $2, $3::jsonb, NOW())
+           ON CONFLICT (collection, id)
+           DO UPDATE SET data = $3::jsonb, updated_at = NOW()`,
+          colName,
+          id,
+          jsonStr
+        );
+        return;
+      } catch (err) {
+        console.error(`[PrismaService] Error saving ${colName}/${id} to PostgreSQL:`, err);
+      }
+    }
     if (this.isOffline) {
       if (!this.localStore[colName]) {
         this.localStore[colName] = {};
@@ -354,6 +452,18 @@ export class PrismaService implements OnModuleInit {
 
   private async deleteRow(name: ModelName, id: string) {
     const colName = COLLECTIONS[name];
+    if (this.isPostgres && this.prismaClient) {
+      try {
+        await this.prismaClient.$executeRawUnsafe(
+          'DELETE FROM midlex_store WHERE collection = $1 AND id = $2',
+          colName,
+          id
+        );
+        return;
+      } catch (err) {
+        console.error(`[PrismaService] Error deleting ${colName}/${id} from PostgreSQL:`, err);
+      }
+    }
     if (this.isOffline) {
       if (this.localStore[colName]) {
         delete this.localStore[colName][id];
@@ -397,7 +507,19 @@ export class PrismaService implements OnModuleInit {
     const where = args.where || {};
     let found: any = null;
 
-    if (where.id && this.isOffline) {
+    if (where.id && this.isPostgres && this.prismaClient) {
+      const colName = COLLECTIONS[name];
+      try {
+        const rows: any = await this.prismaClient.$queryRawUnsafe(
+          'SELECT data FROM midlex_store WHERE collection = $1 AND id = $2 LIMIT 1',
+          colName,
+          where.id
+        );
+        found = rows.length > 0 ? this.fromLocal(rows[0].data) : null;
+      } catch (err) {
+        console.warn(`[PrismaService] Error finding unique row ${colName}/${where.id}:`, err);
+      }
+    } else if (where.id && this.isOffline) {
       const colName = COLLECTIONS[name];
       const raw = this.localStore[colName]?.[where.id];
       found = raw ? this.fromLocal(raw) : null;
