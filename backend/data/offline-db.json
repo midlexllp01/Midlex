@@ -2,63 +2,73 @@
   "users": {
     "fc93ef00-b4a5-45d4-a036-4cd7aff15207": {
       "email": "midlexllp01@gmail.com",
-      "name": "Super Admin",
-      "password": "$2b$10$aOsM21dRv2pmy3bKy30qTu9WQ.MT3tQXU9UqP76gxorCJ11PwqaIi",
+      "name": "Super Admin (Legacy)",
+      "password": "$2b$10$QBfal62yYinhtOg6BYDZZ.BvxnCKOfmq13SXRPKOEKUzb/XNIIAmm",
       "role": "ADMIN",
       "phone": null,
       "id": "fc93ef00-b4a5-45d4-a036-4cd7aff15207",
       "createdAt": "2026-09-25T10:53:46.080Z",
-      "updatedAt": "2026-10-09T12:42:52.824Z"
+      "updatedAt": "2026-10-23T13:52:10.176Z"
     },
     "dd59b9f1-e1c3-4183-85d8-c8949d9ea771": {
       "email": "lawyer1@midlex.com",
       "name": "Barr. Adebayo",
-      "password": "$2b$10$gJixou./Aot/fSChnLkeuOaEVF2Zvwq/gXwEIxl.oMCbva8KraNRe",
+      "password": "$2b$10$R93/0m09Mtguft3PuTYJOOWdzl//qsmq8PKLOlOlbrnBD5FfjErNK",
       "role": "LAWYER",
       "phone": "08012345678",
       "id": "dd59b9f1-e1c3-4183-85d8-c8949d9ea771",
       "createdAt": "2026-09-25T10:53:46.197Z",
-      "updatedAt": "2026-10-09T12:42:53.008Z"
+      "updatedAt": "2026-10-23T13:52:10.331Z"
     },
     "1b8fc30b-512e-4898-8113-1854ecf51a00": {
       "email": "accountant@midlex.com",
       "name": "Chief Accountant (Finance)",
-      "password": "$2b$10$AUL3n6hqQ8mcrfhO2LTz3eLaAMNPoAkh/8NNpmhkZ3Xp6xiOhEMJy",
+      "password": "$2b$10$HqL9ly9HP5uxUoBzh6PReeF3hETdymLmA6800WkZErkRVW4GuIT2m",
       "role": "ACCOUNTANT",
       "phone": "08098765432",
       "id": "1b8fc30b-512e-4898-8113-1854ecf51a00",
       "createdAt": "2026-09-25T10:53:46.313Z",
-      "updatedAt": "2026-10-09T12:42:53.407Z"
+      "updatedAt": "2026-10-23T13:52:10.628Z"
     },
     "9c8b3953-c002-46a8-b420-af63e39d0b89": {
       "email": "client@midlex.com",
       "name": "Demo Client (John Doe)",
-      "password": "$2b$10$iZyyii5jlX6elaWUxy7/f.clhupIZ0egmhWZMxzoM3qlHAlrZOKw6",
+      "password": "$2b$10$YlvLU0/lyjJyPY3rPumrSuRdZOok00MB4pkOrOL8urcbpNLVicWUi",
       "role": "CLIENT",
       "phone": "08033334444",
       "id": "9c8b3953-c002-46a8-b420-af63e39d0b89",
       "createdAt": "2026-09-25T10:53:46.433Z",
-      "updatedAt": "2026-10-09T12:42:53.589Z"
+      "updatedAt": "2026-10-23T13:52:10.784Z"
     },
     "61a81be2-03e0-432e-975d-bc04a6cb2f96": {
       "email": "user@midlex.com",
       "name": "Standard User (Jane Doe)",
-      "password": "$2b$10$cKc6tuZu/MmujjjtKnLIOOtC3OAqRL7Ew5qRvdB8QtlUEkYEo0wnu",
+      "password": "$2b$10$KVyQhXgD4eENvvyq46F6.uIajKQpdXPzAyjWUan/4dTnsQGBqCcjK",
       "role": "CLIENT",
       "phone": "08055556666",
       "id": "61a81be2-03e0-432e-975d-bc04a6cb2f96",
       "createdAt": "2026-09-25T10:53:46.546Z",
-      "updatedAt": "2026-10-09T12:42:53.801Z"
+      "updatedAt": "2026-10-23T13:52:10.939Z"
     },
     "fb2d8f05-9cdb-4e0b-a27a-81fd77c5574d": {
       "email": "samson@midlex.com",
       "name": "Samson Sabbat",
-      "password": "$2b$10$W3r47G5aJwSrQuVpN6d.WeoaQT.PvPvoFN457rkWjfKMGNLgB2WlC",
+      "password": "$2b$10$jPcg22jFwignV5AICJDJfulxkndFgUY4NbbnzJaDPG/9lYqrgCcFq",
       "role": "LAWYER",
       "phone": "08022223333",
       "id": "fb2d8f05-9cdb-4e0b-a27a-81fd77c5574d",
       "createdAt": "2026-10-09T02:43:49.358Z",
-      "updatedAt": "2026-10-09T12:42:53.217Z"
+      "updatedAt": "2026-10-23T13:52:10.487Z"
+    },
+    "46589496-d705-4e36-aaa1-ade43a6e5754": {
+      "email": "abeddybaba@gmail.com",
+      "name": "Super Admin",
+      "password": "$2b$10$OpnJl4OZuURfLkefsUWc2uqgOp/M1JogmYCkj6UJUxJ7piojj7Hlu",
+      "role": "ADMIN",
+      "phone": null,
+      "id": "46589496-d705-4e36-aaa1-ade43a6e5754",
+      "createdAt": "2026-10-23T13:52:09.976Z",
+      "updatedAt": "2026-10-23T13:52:09.976Z"
     }
   },
   "directory": {
@@ -93,6 +103,21 @@
       ],
       "createdAt": "2026-09-25T10:53:46.553Z",
       "updatedAt": "2026-09-25T10:53:46.553Z"
+    }
+  },
+  "workspaceUsers": {
+    "5222ccb8-d877-46e2-9205-43b11ebf829b": {
+      "email": "joshuaomatsuli01@gmail.com",
+      "name": "Joshua Omatsuli (Developer)",
+      "password": "$2b$12$JJ0odW/U6kflGkFszFUsOeoJoaLYMpU.08bNOLqjWUr6nT5n5DCxi",
+      "role": "DEVELOPER",
+      "active": true,
+      "version": 1,
+      "mustChangePassword": false,
+      "grants": {},
+      "id": "5222ccb8-d877-46e2-9205-43b11ebf829b",
+      "createdAt": "2026-10-23T13:52:11.570Z",
+      "updatedAt": "2026-10-23T13:52:11.570Z"
     }
   }
 }
