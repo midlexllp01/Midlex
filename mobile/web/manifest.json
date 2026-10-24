@@ -1,11 +1,11 @@
 {
-    "name": "mobile",
-    "short_name": "mobile",
-    "start_url": ".",
+    "name": "Midlex LLP",
+    "short_name": "Midlex LLP",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#1B4D2E",
     "theme_color": "#1B4D2E",
-    "description": "A new Flutter project.",
+    "description": "Midlex LLP Official Legal Client Portal & Mobile Application",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

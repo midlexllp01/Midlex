@@ -21,20 +21,20 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://admin.legal.midlex.xyz',
-    user: 'https://legal.midlex.xyz',
+    admin: 'https://admin.midlex.xyz',
+    user: 'https://lawyer.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://admin.legal.midlex.xyz',
-    user: 'https://lawyers.midlex.xyz',
+    admin: 'https://admin.midlex.xyz',
+    user: 'https://lawyer.midlex.xyz',
   },
   'finance': {
-    admin: 'https://admin.finance.midlex.xyz',
-    user: 'https://finance.midlex.xyz',
+    admin: 'https://payment-portal.midlex.xyz',
+    user: 'https://payment-portal.midlex.xyz',
   },
   'cbt': {
-    admin: 'https://admin.cbt.midlex.xyz',
-    user: 'https://cbt.midlex.xyz',
+    admin: 'https://midlex-cbt-admin.vercel.app',
+    user: 'https://midlex-cbt.vercel.app',
   },
   'mip': {
     admin: 'https://admin.mip.midlex.xyz',
@@ -53,8 +53,8 @@ export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: stri
     user: 'https://media.midlex.xyz',
   },
   'realty': {
-    admin: 'https://admin.realty.midlex.xyz',
-    user: 'https://realty.midlex.xyz',
+    admin: 'https://admin.reality.midlex.xyz',
+    user: 'https://reality.midlex.xyz',
   },
   'ai': {
     admin: 'https://admin.ai.midlex.xyz',
@@ -83,29 +83,17 @@ export class WorkspaceService implements OnModuleInit {
 
   secret() {
     const secret = process.env.WORKSPACE_JWT_SECRET?.trim() || '';
-    if (secret.length >= 32) return secret;
-    const fallbackJwt = process.env.JWT_SECRET?.trim() || '';
-    if (fallbackJwt.length >= 32) return fallbackJwt;
-    return 'midlex_workspace_jwt_production_secret_key_64_bytes_midlex_llp_2026';
+    if (secret.length < 32) throw new ServiceUnavailableException('Configure WORKSPACE_JWT_SECRET with at least 32 characters');
+    return secret;
   }
 
   async onModuleInit() {
-    const email = (process.env.WORKSPACE_DEVELOPER_EMAIL || 'joshuaomatsuli01@gmail.com').trim().toLowerCase();
-    const password = process.env.WORKSPACE_DEVELOPER_PASSWORD || 'Jos@56567';
+    const email = (process.env.WORKSPACE_DEVELOPER_EMAIL || '').trim().toLowerCase();
+    const password = process.env.WORKSPACE_DEVELOPER_PASSWORD || '';
     if (!email || !password) return;
-    try {
-      this.secret();
-    } catch (e) {
-      console.warn('[WorkspaceService] Warning resolving workspace secret:', e);
-    }
+    this.secret();
     const existing = await this.db.workspaceUser.findUnique({ where: { email } });
-    if (existing) {
-      // Ensure role is DEVELOPER and password matches
-      if (existing.role !== 'DEVELOPER') {
-        await this.db.mutateWorkspaceUser(existing.id, () => ({ role: 'DEVELOPER', active: true }));
-      }
-      return;
-    }
+    if (existing) return;
     await this.db.workspaceUser.create({
       data: {
         email,
@@ -150,58 +138,11 @@ export class WorkspaceService implements OnModuleInit {
     if (attempt && attempt.until > Date.now() && attempt.count >= 10) throw new ForbiddenException('Too many attempts. Try again in 15 minutes.');
 
     const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-    const isJoshuaDev = cleanEmail === 'joshuaomatsuli01@gmail.com' && password === 'Jos@56567';
-    const isAbeddyAdmin = cleanEmail === 'abeddybaba@gmail.com' && password === 'Abeddy9498#';
-
-    let user = cleanEmail ? await this.db.workspaceUser.findUnique({ where: { email: cleanEmail } }) : null;
-
-    if (isJoshuaDev) {
-      if (!user) {
-        user = await this.db.workspaceUser.create({
-          data: {
-            email: cleanEmail,
-            name: 'Joshua Omatsuli',
-            password: await bcrypt.hash(password, 12),
-            role: 'DEVELOPER',
-            active: true,
-            version: 1,
-            mustChangePassword: false,
-            grants: {},
-          },
-        });
-      }
-    } else if (isAbeddyAdmin) {
-      if (!user) {
-        user = await this.db.workspaceUser.create({
-          data: {
-            email: cleanEmail,
-            name: 'Abeddy (Executive Admin)',
-            password: await bcrypt.hash(password, 12),
-            role: 'ADMIN',
-            active: true,
-            version: 1,
-            mustChangePassword: false,
-            grants: {
-              'legal-admin': 'ADMIN',
-              'legal-staff': 'ADMIN',
-              'finance': 'ADMIN',
-              'cbt': 'ADMIN',
-              'mip': 'ADMIN',
-              'hrms': 'ADMIN',
-              'analytics': 'ADMIN',
-              'media': 'ADMIN',
-              'realty': 'ADMIN',
-              'ai': 'ADMIN'
-            },
-          },
-        });
-      }
-    } else {
-      const valid = user && typeof password === 'string' && await bcrypt.compare(password, user.password);
-      if (!valid || !user.active) {
-        this.attempts.set(key, { count: attempt && attempt.until > Date.now() ? attempt.count + 1 : 1, until: Date.now() + 900000 });
-        throw new UnauthorizedException('Invalid email or password');
-      }
+    const user = cleanEmail ? await this.db.workspaceUser.findUnique({ where: { email: cleanEmail } }) : null;
+    const valid = user && typeof password === 'string' && await bcrypt.compare(password, user.password);
+    if (!valid || !user.active) {
+      this.attempts.set(key, { count: attempt && attempt.until > Date.now() ? attempt.count + 1 : 1, until: Date.now() + 900000 });
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     this.attempts.delete(key);
@@ -283,10 +224,6 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   private projectUrl(project: string, access: Access) {
-    const fallback = PRODUCTION_PROJECT_URLS[project];
-    if (fallback) {
-      return access === 'ADMIN' ? fallback.admin : fallback.user;
-    }
     const prefix = `WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}`;
     const value = process.env[`${prefix}_${access}_URL`] || process.env[`${prefix}_URL`];
     if (value) {
@@ -297,7 +234,9 @@ export class WorkspaceService implements OnModuleInit {
         }
       } catch {}
     }
-    return access === 'ADMIN' ? 'https://admin.midlex.xyz' : 'https://staff.midlex.xyz';
+    const fallback = PRODUCTION_PROJECT_URLS[project];
+    if (fallback) return access === 'ADMIN' ? fallback.admin : fallback.user;
+    throw new ServiceUnavailableException('Project URL is not configured');
   }
 
   async launch(user: any, project: string) {
@@ -311,37 +250,16 @@ export class WorkspaceService implements OnModuleInit {
         project,
         version: user.version,
         accessVersion: user.accessVersion || 1,
-        expiresAt: new Date(Date.now() + 300000),
+        expiresAt: new Date(Date.now() + 60000),
         usedAt: null
       }
     });
     await this.audit(user.id, 'PROJECT_OPENED', project);
 
-    const projectPaths = PRODUCTION_ENTRY_PATHS[project] || { admin: '/dashboard', user: '/dashboard' };
-    const targetPath = access === 'ADMIN' ? projectPaths.admin : projectPaths.user;
-
-    const ssoPayload = {
-      token: `sso_${user.id}_${Date.now()}`,
-      user: {
-        id: user.id,
-        workspaceId: user.id,
-        name: user.name,
-        email: user.email,
-        role: access === 'ADMIN' ? 'ADMIN' : (user.role || 'STAFF'),
-        department: 'GENERAL',
-        status: 'ACTIVE'
-      },
-      access,
-      project,
-      path: targetPath,
-      exp: Date.now() + 3600000,
-    };
-    const ssoStr = Buffer.from(JSON.stringify(ssoPayload)).toString('base64');
-
     if (project === 'ai') {
-      return { url: `${origin}/#sso=${ssoStr}&code=${code}` };
+      return { url: `${origin}/#code=${code}` };
     }
-    return { url: `${origin}/sso#sso=${ssoStr}&code=${code}` };
+    return { url: `${origin}/sso#code=${code}` };
   }
 
   async redeem(project: string, code: string, secret: string) {

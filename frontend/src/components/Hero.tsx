@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
-import { ArrowRight, ShieldCheck, Scale, Briefcase, Smartphone, Download } from "lucide-react";
+import { ArrowRight, ShieldCheck, Scale, Briefcase, Smartphone, ExternalLink, PlusSquare } from "lucide-react";
 import Link from "next/link";
 
 export default function Hero() {
@@ -85,7 +85,7 @@ export default function Hero() {
                 </motion.button>
               </Link>
               <a
-                href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
+                href="https://mobile.midlex.xyz"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -95,8 +95,8 @@ export default function Hero() {
                   className="bg-secondary text-primary font-bold px-7 sm:px-8 py-4 sm:py-5 rounded-2xl flex items-center gap-2 shadow-xl shadow-secondary/20 transition-all border border-secondary"
                 >
                   <Smartphone size={20} />
-                  <span>Download App (APK)</span>
-                  <Download size={16} />
+                  <span>Open Mobile App</span>
+                  <ExternalLink size={16} />
                 </motion.button>
               </a>
               <Link href="#services">
@@ -108,6 +108,37 @@ export default function Hero() {
                   Our Services
                 </motion.button>
               </Link>
+            </motion.div>
+
+            {/* Quick Add-to-Home-Screen Instructions right next to the App button */}
+            <motion.div
+              variants={itemVariants}
+              className="mt-5 p-4 rounded-2xl bg-primary/[0.04] border border-primary/15 max-w-xl"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-primary font-bold text-xs sm:text-sm">
+                  <PlusSquare size={16} className="text-secondary shrink-0" />
+                  <span>Install Web App on Your Phone Home Screen:</span>
+                </div>
+                <a
+                  href="https://mobile.midlex.xyz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono font-bold text-secondary hover:underline"
+                >
+                  mobile.midlex.xyz ↗
+                </a>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2.5 text-xs text-gray-600 leading-relaxed">
+                <div className="bg-white/80 p-2.5 rounded-xl border border-gray-100">
+                  <span className="font-bold text-primary block mb-0.5"> iPhone / iOS (Safari):</span>
+                  Open <a href="https://mobile.midlex.xyz" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold underline">mobile.midlex.xyz</a> → Tap <strong>Share (↑)</strong> → Select <strong>&ldquo;Add to Home Screen&rdquo;</strong>.
+                </div>
+                <div className="bg-white/80 p-2.5 rounded-xl border border-gray-100">
+                  <span className="font-bold text-primary block mb-0.5">🤖 Android (Chrome):</span>
+                  Open <a href="https://mobile.midlex.xyz" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold underline">mobile.midlex.xyz</a> → Tap <strong>Menu (⋮)</strong> → Tap <strong>&ldquo;Add to Home screen&rdquo;</strong>.
+                </div>
+              </div>
             </motion.div>
 
             <motion.div 

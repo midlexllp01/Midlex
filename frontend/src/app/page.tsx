@@ -125,7 +125,7 @@ export default function Home() {
       <Testimonials />
 
       {/* Mobile App Showcase Section */}
-      <section className="py-20 bg-gradient-to-b from-[#fafafa] to-white relative overflow-hidden">
+      <section id="mobile-app" className="py-20 bg-gradient-to-b from-[#fafafa] to-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-[#1B4D2E] via-[#143a22] to-[#0d2616] rounded-[40px] p-8 sm:p-12 lg:p-16 text-white relative overflow-hidden shadow-2xl border border-secondary/20">
             {/* Ambient Background glows */}
@@ -136,7 +136,7 @@ export default function Home() {
               <div className="lg:col-span-7 space-y-6">
                 <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-secondary text-sm font-semibold border border-white/10">
                   <Smartphone size={18} />
-                  <span>Official Android Mobile Application</span>
+                  <span>Official Mobile Web App (iOS & Android)</span>
                 </div>
 
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
@@ -145,23 +145,58 @@ export default function Home() {
                 </h2>
 
                 <p className="text-white/80 text-base sm:text-lg max-w-xl leading-relaxed">
-                  Track your cases in real-time, consult with senior legal counsel, manage invoices and court dates, and receive instant hearing alerts directly on your Android device.
+                  Track your cases in real-time, consult with senior legal counsel, manage invoices and court dates, and receive instant hearing alerts directly from <span className="text-secondary font-semibold">mobile.midlex.xyz</span> on your iPhone or Android device.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2">
                   <a
-                    href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
+                    href="https://mobile.midlex.xyz"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-3 bg-secondary hover:bg-[#b89047] text-primary font-bold px-8 py-4 rounded-2xl shadow-xl shadow-secondary/20 transition-all transform hover:scale-105"
                   >
-                    <Download size={22} />
-                    <span>Download App (Google Drive)</span>
+                    <Smartphone size={22} />
+                    <span>Open Mobile App (mobile.midlex.xyz)</span>
                   </a>
 
                   <div className="text-white/70 text-sm flex items-center gap-2">
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Direct APK Download • Android 5.0+</span>
+                    <span>Works on iPhone (iOS) & Android • Instant Web App</span>
+                  </div>
+                </div>
+
+                {/* Instructions on How to Add to Home Screen - Right next to the App Button */}
+                <div className="mt-6 bg-white/10 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-secondary/30 shadow-inner">
+                  <div className="flex items-center gap-2 text-secondary font-bold text-sm sm:text-base uppercase tracking-wider mb-3">
+                    <Smartphone size={18} />
+                    <span>How to Add Mobile App to Your Phone Home Screen</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-white/80 mb-4">
+                    Install <a href="https://mobile.midlex.xyz" target="_blank" rel="noopener noreferrer" className="text-secondary underline font-semibold">mobile.midlex.xyz</a> directly onto your home screen for one-tap full-screen access—no app store download required:
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-4 text-xs sm:text-sm">
+                    <div className="bg-black/25 rounded-xl p-4 border border-white/10">
+                      <p className="font-bold text-secondary mb-2 flex items-center gap-1.5">
+                        <span>🍎 iPhone / iPad (Safari)</span>
+                      </p>
+                      <ol className="space-y-1.5 text-white/85 list-decimal list-inside">
+                        <li>Open <a href="https://mobile.midlex.xyz" target="_blank" rel="noopener noreferrer" className="text-secondary underline font-medium">mobile.midlex.xyz</a> in <strong>Safari</strong>.</li>
+                        <li>Tap the <strong>Share</strong> icon <span className="inline-block px-1.5 py-0.5 bg-white/10 rounded text-[11px]">⬆️</span> at the bottom of the screen.</li>
+                        <li>Scroll down and tap <strong>&ldquo;Add to Home Screen&rdquo;</strong>.</li>
+                        <li>Tap <strong>Add</strong> in the top-right corner.</li>
+                      </ol>
+                    </div>
+                    <div className="bg-black/25 rounded-xl p-4 border border-white/10">
+                      <p className="font-bold text-secondary mb-2 flex items-center gap-1.5">
+                        <span>🤖 Android (Chrome)</span>
+                      </p>
+                      <ol className="space-y-1.5 text-white/85 list-decimal list-inside">
+                        <li>Open <a href="https://mobile.midlex.xyz" target="_blank" rel="noopener noreferrer" className="text-secondary underline font-medium">mobile.midlex.xyz</a> in <strong>Chrome</strong>.</li>
+                        <li>Tap the <strong>three-dot menu (⋮)</strong> in the top-right corner.</li>
+                        <li>Select <strong>&ldquo;Add to Home screen&rdquo;</strong> or <strong>&ldquo;Install app&rdquo;</strong>.</li>
+                        <li>Tap <strong>Install / Add</strong> to place the Midlex icon on your screen.</li>
+                      </ol>
+                    </div>
                   </div>
                 </div>
 
@@ -186,17 +221,25 @@ export default function Home() {
                   <h3 className="text-xl font-bold text-white mb-1">Midlex Mobile</h3>
                   <p className="text-xs text-secondary font-semibold uppercase tracking-wider mb-4">Official Legal Client App</p>
                   <div className="bg-white/10 rounded-xl p-3 mb-4 text-xs text-white/80 text-left space-y-1.5 font-mono">
-                    <p className="flex justify-between"><span>Format:</span> <span className="text-secondary">Android APK</span></p>
-                    <p className="flex justify-between"><span>Version:</span> <span className="text-secondary">1.0.0</span></p>
-                    <p className="flex justify-between"><span>Storage:</span> <span className="text-secondary">Google Drive</span></p>
+                    <p className="flex justify-between"><span>Web URL:</span> <span className="text-secondary">mobile.midlex.xyz</span></p>
+                    <p className="flex justify-between"><span>Platform:</span> <span className="text-secondary">iOS & Android PWA</span></p>
+                    <p className="flex justify-between"><span>Install:</span> <span className="text-secondary">Add to Home Screen</span></p>
                   </div>
+                  <a
+                    href="https://mobile.midlex.xyz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-3 bg-secondary text-primary font-bold rounded-xl text-sm hover:bg-opacity-90 transition-all shadow-md mb-2.5"
+                  >
+                    Launch Mobile App ↗
+                  </a>
                   <a
                     href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full py-3 bg-secondary text-primary font-bold rounded-xl text-sm hover:bg-opacity-90 transition-all shadow-md"
+                    className="block w-full py-2 bg-white/10 text-white/80 font-medium rounded-xl text-xs hover:bg-white/20 transition-all"
                   >
-                    Download APK ↗
+                    Or Download Android APK
                   </a>
                 </div>
               </div>
@@ -248,12 +291,12 @@ export default function Home() {
                 <li><Link href="#lawyers" className="hover:text-secondary transition-colors">Our Team</Link></li>
                 <li>
                   <a 
-                    href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing" 
+                    href="https://mobile.midlex.xyz" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="text-secondary font-semibold hover:underline flex items-center gap-1.5"
                   >
-                    <span>📱 Download App (APK)</span>
+                    <span>📱 Mobile App (mobile.midlex.xyz)</span>
                   </a>
                 </li>
                 <li><Link href="#contact" className="hover:text-secondary transition-colors">Contact</Link></li>

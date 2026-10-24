@@ -73,6 +73,16 @@ export default function MarketingFooter() {
                 </Link>
               </li>
               <li>
+                <a
+                  href="https://mobile.midlex.xyz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-secondary font-semibold hover:underline flex items-center gap-1.5"
+                >
+                  <span>📱 Mobile App (mobile.midlex.xyz)</span>
+                </a>
+              </li>
+              <li>
                 <Link href="/contact" className="hover:text-secondary transition-colors">
                   Contact
                 </Link>

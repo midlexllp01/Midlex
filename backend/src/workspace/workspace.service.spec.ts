@@ -30,6 +30,16 @@ describe('Workspace access and project SSO', () => {
     member = await store.db.workspaceUser.create({ data: { name: 'Staff', email: 'staff@example.com', role: 'STAFF', active: true, password: await bcrypt.hash('staff-password-123', 4), version: 1, grants: { cbt: 'USER' }, mustChangePassword: false } });
   });
   async function launch() { const result = await service.launch(member, 'cbt'); return new URLSearchParams(new URL(result.url).hash.slice(1)).get('code')!; }
+  it('only sends a one-use code to the project and uses the deployed CBT URL', async () => {
+    const result = await service.launch(member, 'cbt');
+    const url = new URL(result.url);
+    expect(url.origin).toBe('https://midlex-cbt.vercel.app');
+    expect(url.hash).toMatch(/^#code=[A-Za-z0-9_-]+$/);
+    expect(url.hash).not.toContain('sso=');
+  });
+  it('rejects login for an account that was never provisioned', async () => {
+    await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');
+  });
   it('does not grant admins implicit project access or onboarding authority', async () => {
     const admin = { ...member, role: 'ADMIN', grants: {} };
     expect((await service.overview(admin)).projects).toHaveLength(0);

@@ -57,13 +57,13 @@ export default function Navbar() {
             ))}
             <div className="flex items-center gap-3 ml-4">
               <a
-                href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
+                href="https://mobile.midlex.xyz"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden lg:flex items-center gap-1.5 text-xs font-bold text-secondary bg-primary/5 hover:bg-primary/10 border border-secondary/30 px-3.5 py-2 rounded-full transition-all"
               >
                 <Smartphone size={14} />
-                <span>Get App (APK)</span>
+                <span>Mobile App</span>
               </a>
               <Link href="/login" className="text-primary hover:text-secondary transition-colors font-bold">Login</Link>
               <motion.div
@@ -121,14 +121,14 @@ export default function Navbar() {
               <hr className="border-gray-100" />
               <div className="flex flex-col gap-3">
                 <a
-                  href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
+                  href="https://mobile.midlex.xyz"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setIsOpen(false)}
                   className="bg-secondary text-primary py-3.5 px-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md text-base"
                 >
                   <Smartphone size={18} />
-                  <span>Download App (APK)</span>
+                  <span>Open Mobile App (mobile.midlex.xyz)</span>
                 </a>
                 <Link href="/login" onClick={() => setIsOpen(false)} className="py-2 text-primary">Login</Link>
                 <Link href="/signup" onClick={() => setIsOpen(false)} className="bg-primary text-white py-4 rounded-2xl shadow-lg">
