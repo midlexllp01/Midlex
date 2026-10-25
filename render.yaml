@@ -16,40 +16,48 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: WORKSPACE_JWT_SECRET
-        value: r3AGcL-VXV12s39jm90qHwgies2o2Tv-OdhiuFRwoFNqmHoV
+        sync: false
       - key: WORKSPACE_DEVELOPER_EMAIL
         value: joshuaomatsuli01@gmail.com
       - key: WORKSPACE_DEVELOPER_NAME
         value: Joshua Omatsuli (Developer)
       - key: WORKSPACE_DEVELOPER_PASSWORD
-        value: Jos@56567
+        sync: false
       - key: WORKSPACE_PROJECT_LEGAL_ADMIN_SECRET
-        value: uzzBIzBpLYjjJkWjFgbTRLtMgzdniguTrB-LKiGO_jiRP4Zq
+        sync: false
       - key: WORKSPACE_PROJECT_LEGAL_STAFF_SECRET
-        value: Ei5zfG2xYf7PixT3jJRuJetQ7QHzo-Yd-qJR42ihVAedVoJR
+        sync: false
       - key: WORKSPACE_PROJECT_FINANCE_SECRET
-        value: GmhBHXYrwamtCxLxCJRETVhSNuwz8elpzj9k3q204HlhqZyO
+        sync: false
       - key: WORKSPACE_PROJECT_CBT_SECRET
-        value: M9BQ72aUXeIrOar0zSQuxHgyYPNl382AwmhZyUOBUjuxpMJY
+        sync: false
       - key: WORKSPACE_PROJECT_MIP_SECRET
-        value: 5ySzxjQZkK_fLIL9BNfZfzakJN2etRupcpNWQuMcV7gtSD4t
+        sync: false
       - key: WORKSPACE_PROJECT_HRMS_SECRET
-        value: 9cXzMDsMozq8X33alcPMmpL0TucOKZ4wafySIKPhLZVI2jRm
+        sync: false
       - key: WORKSPACE_PROJECT_ANALYTICS_SECRET
-        value: 0fHvb-P41zaYxTGCq6HOdH7rRkPgBssyNGRO5N2oEc12OJM_
+        sync: false
       - key: WORKSPACE_PROJECT_MEDIA_SECRET
-        value: EBAOfe0F9-h_eeRB-i4g-pwZ7-KghqiX5Uewax6gueHa3gpO
+        sync: false
       - key: WORKSPACE_PROJECT_REALTY_SECRET
-        value: qRZpApz705CJ7B6i6-vz9ezLn9Rvo6leNQEXmy4BguNwU2zf
+        sync: false
       - key: WORKSPACE_PROJECT_AI_SECRET
-        value: hl_vfWwlYGtQ_W32444CF43bIcy8Mz_3SmVtVCB5s7mZItkB
+        sync: false
       - key: WORKSPACE_URL
-        value: https://admin.midlex.xyz
-      - key: WORKSPACE_PROJECT_HRMS_URL
-        value: https://admin-midlex-hrms.vercel.app
-      - key: WORKSPACE_PROJECT_CBT_URL
+        value: https://developer.midlex.xyz
+      - key: WORKSPACE_PROJECT_HRMS_ADMIN_URL
+        value: https://admin.hrms.midlex.xyz
+      - key: WORKSPACE_PROJECT_HRMS_USER_URL
+        value: https://hrms.midlex.xyz
+      - key: WORKSPACE_PROJECT_CBT_ADMIN_URL
+        value: https://midlex-cbt-admin.vercel.app
+      - key: WORKSPACE_PROJECT_CBT_USER_URL
         value: https://midlex-cbt.vercel.app
-      - key: WORKSPACE_PROJECT_AI_URL
+      - key: WORKSPACE_PROJECT_AI_ADMIN_URL
+        value: https://admin.ai.midlex.xyz
+      - key: WORKSPACE_PROJECT_AI_USER_URL
         value: https://ai.midlex.xyz
-      - key: WORKSPACE_PROJECT_REALTY_URL
-        value: https://midlex-realty.vercel.app
+      - key: WORKSPACE_PROJECT_REALTY_ADMIN_URL
+        value: https://admin.reality.midlex.xyz
+      - key: WORKSPACE_PROJECT_REALTY_USER_URL
+        value: https://reality.midlex.xyz

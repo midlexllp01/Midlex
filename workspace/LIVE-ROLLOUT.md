@@ -14,12 +14,18 @@ The workspace backend is the identity and project-grant authority. Each existing
 | Realty | `https://reality.midlex.xyz` | `https://admin.reality.midlex.xyz` |
 | AI | `https://ai.midlex.xyz` | `https://admin.ai.midlex.xyz` |
 
-The URLs above came from the supplied deployment screenshots. Verify the AI and Realty backend origins separately; frontend URLs do not identify their API deployments. Do not enable projects that are not deployed yet.
+The URLs above came from the supplied deployment screenshots. The live workspace identity API is `https://midlex-project-backend.onrender.com`; its `/health` endpoint responds and its `/workspace/me` endpoint rejects unauthenticated requests. Verify the AI and Realty backend origins separately; frontend URLs do not identify their API deployments. Do not enable projects that are not deployed yet.
+
+## Verified live status (25 October 2026)
+
+The workspace pages at `developer.midlex.xyz`, `staff.midlex.xyz`, and `admin.midlex.xyz` load, and an invalid workspace login returns 401. This does not establish an end-to-end staff sign-in. Safe invalid-code `POST /api/sso` probes found the route missing on the live Legal admin and both CBT portals (404), and missing `WORKSPACE_PROJECT_SECRET` on Legal staff, Finance, HRMS and Realty portals (503). The deployed Vercel projects and their environment settings must be mapped to the intended domains before changing production.
+
+Keep GitHub as the source of truth: update each app's own repository, configure the corresponding Vercel project and Render service, deploy, then test the live origin. Changes in a local sibling project folder do not update those independent deployments.
 
 ## Deployment order
 
 1. Rotate all previously committed workspace and project admin passwords and secrets. Remove those credentials from deployed environment settings where they are no longer needed. Existing workspace passwords are stored as hashes; reset affected accounts through the central identity store so previous passwords stop working.
-2. Deploy the central backend with durable Firestore credentials, a unique `WORKSPACE_JWT_SECRET` of at least 32 random characters, and a different `WORKSPACE_PROJECT_<ID>_SECRET` for each enabled project. Configure `WORKSPACE_PROJECT_<ID>_USER_URL` and `_ADMIN_URL` when a deployment differs from the table.
+2. Deploy the central backend with durable Firestore credentials, a unique `WORKSPACE_JWT_SECRET` of at least 32 random characters, and a different `WORKSPACE_PROJECT_<ID>_SECRET` for each enabled project. Configure `WORKSPACE_PROJECT_<ID>_USER_URL` and `_ADMIN_URL` when a deployment differs from the table. The currently live identity API is `https://midlex-project-backend.onrender.com`; confirm the Render service and GitHub source match before rotating or redeploying it.
 3. Deploy the workspace frontend with `WORKSPACE_API_URL` set to the central backend HTTPS origin. The workspace no longer accepts local fixed accounts or generates browser-trusted SSO payloads.
 4. For each project being enabled, deploy its updated frontend and API together. Set server-only `WORKSPACE_URL`, `WORKSPACE_API_URL`, and `WORKSPACE_PROJECT_SECRET` on the frontend; set `WORKSPACE_API_URL` on a separate project API. The project secret must match the central backend's secret for that project.
    Realty's API also requires a unique `JWT_SECRET` of at least 32 characters for marketplace user sessions. Direct Realty admin password login is disabled by default. `ALLOW_LEGACY_ADMIN_LOGIN=true` temporarily restores it only when `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `JWT_SECRET` are configured; remove that flag after the workspace rollout.
