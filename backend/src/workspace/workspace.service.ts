@@ -21,11 +21,11 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://admin.midlex.xyz',
+    admin: 'https://legal-admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://admin.midlex.xyz',
+    admin: 'https://legal-admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'finance': {

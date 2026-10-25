@@ -6,8 +6,8 @@ The workspace backend is the identity and project-grant authority. Each existing
 
 | Workspace project | User URL | Admin URL |
 | --- | --- | --- |
-| Legal management | `https://lawyer.midlex.xyz` | `https://admin.midlex.xyz` |
-| Counsel workspace | `https://lawyer.midlex.xyz` | `https://admin.midlex.xyz` |
+| Legal management | `https://lawyer.midlex.xyz` | `https://legal-admin.midlex.xyz` |
+| Counsel workspace | `https://lawyer.midlex.xyz` | `https://legal-admin.midlex.xyz` |
 | Finance | `https://payment-portal.midlex.xyz` | `https://payment-portal.midlex.xyz` |
 | CBT | `https://midlex-cbt.vercel.app` | `https://midlex-cbt-admin.vercel.app` |
 | HRMS | `https://hrms.midlex.xyz` | `https://admin.hrms.midlex.xyz` |
@@ -18,7 +18,7 @@ The URLs above came from the supplied deployment screenshots. The live workspace
 
 ## Verified live status (25 October 2026)
 
-The workspace pages at `developer.midlex.xyz`, `staff.midlex.xyz`, and `admin.midlex.xyz` load, and an invalid workspace login returns 401. This does not establish an end-to-end staff sign-in. Safe invalid-code `POST /api/sso` probes found the route missing on the live Legal admin and both CBT portals (404), and missing `WORKSPACE_PROJECT_SECRET` on Legal staff, Finance, HRMS and Realty portals (503). The deployed Vercel projects and their environment settings must be mapped to the intended domains before changing production.
+The workspace pages at `developer.midlex.xyz`, `staff.midlex.xyz`, and `admin.midlex.xyz` load, and an invalid workspace login returns 401. This does not establish an end-to-end staff sign-in. `admin.midlex.xyz` currently routes to the workspace, so a dedicated `legal-admin.midlex.xyz` domain was attached and verified for the Legal admin Vercel project. Safe invalid-code `POST /api/sso` probes found missing `WORKSPACE_PROJECT_SECRET` on the new Legal admin domain, Legal staff, Finance, HRMS and Realty portals (503); both CBT portals still returned 404. Confirm the GitHub repository and live deployment behind each CBT URL before enabling it.
 
 Keep GitHub as the source of truth: update each app's own repository, configure the corresponding Vercel project and Render service, deploy, then test the live origin. Changes in a local sibling project folder do not update those independent deployments.
 
