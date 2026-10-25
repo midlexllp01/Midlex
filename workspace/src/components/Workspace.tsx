@@ -35,7 +35,7 @@ export default function Workspace({ role }: { role: string }) {
         router.replace(`/${userRole}`);
         return;
       }
-      setData(next);
+      setData({ ...next, projects: next.projects.map((project: Project) => project.id === 'cbt' ? { ...project, name: 'Midlex CBT' } : project) });
     }
     catch (e) {
       router.replace(`/login?role=${role}`);

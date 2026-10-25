@@ -33,9 +33,11 @@ describe('Workspace access and project SSO', () => {
   it('only sends a one-use code to the project and uses the deployed CBT URL', async () => {
     const result = await service.launch(member, 'cbt');
     const url = new URL(result.url);
-    expect(url.origin).toBe('https://midlex-cbt.vercel.app');
+    expect(url.origin).toBe('https://cbt.midlex.xyz');
     expect(url.hash).toMatch(/^#code=[A-Za-z0-9_-]+$/);
     expect(url.hash).not.toContain('sso=');
+    const code = [...store.rows.codes.values()][0];
+    expect(new Date(code.expiresAt).getTime() - Date.now()).toBeGreaterThan(170000);
   });
   it('rejects login for an account that was never provisioned', async () => {
     await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');

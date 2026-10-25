@@ -30,7 +30,7 @@ Run the target project as well before clicking its card. Install that project's 
 | --- | --- | --- |
 | Legal management | `admin` | 3002 |
 | Counsel workspace | `lawyers` | 3003 |
-| Assessment centre | `cbt` | 3004 |
+| Midlex CBT | `cbt` | 3004 |
 | Internship programme | `mip` | 3005 |
 | People & HR | `hrms` | 3006 |
 | Analytics & publishing | `midlex-analytics` | 3007 |

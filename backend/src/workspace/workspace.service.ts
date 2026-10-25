@@ -10,7 +10,7 @@ export const PROJECTS = [
   { id: 'legal-admin', name: 'Legal Management', category: 'Legal operations', description: 'Cases, clients, assignments and firm administration.', port: 3002, path: '/dashboard' },
   { id: 'legal-staff', name: 'Counsel Workspace', category: 'Legal operations', description: 'Assigned matters, court dates and client collaboration.', port: 3003, path: '/dashboard' },
   { id: 'finance', name: 'Payments & Finance', category: 'Finance', description: 'Invoices, payment verification and financial records.', port: 3010, path: '/dashboard' },
-  { id: 'cbt', name: 'Assessment Centre', category: 'Learning', description: 'Examinations, candidates and assessment results.', port: 3004, path: '/dashboard' },
+  { id: 'cbt', name: 'Midlex CBT', category: 'Learning', description: 'Examinations, candidates and assessment results.', port: 3004, path: '/dashboard' },
   { id: 'mip', name: 'Internship Programme', category: 'Learning', description: 'Interns, supervision, tasks and logbooks.', port: 3005, path: '/dashboard' },
   { id: 'hrms', name: 'People & HR', category: 'People', description: 'Staff directory, attendance and leave management.', port: 3006, path: '/dashboard' },
   { id: 'analytics', name: 'Analytics & Publishing', category: 'Research', description: 'Legal research, reporting and publishing services.', port: 3007, path: '/' },
@@ -250,7 +250,7 @@ export class WorkspaceService implements OnModuleInit {
         project,
         version: user.version,
         accessVersion: user.accessVersion || 1,
-        expiresAt: new Date(Date.now() + 60000),
+        expiresAt: new Date(Date.now() + 180000),
         usedAt: null
       }
     });
