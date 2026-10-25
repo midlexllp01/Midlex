@@ -1178,6 +1178,32 @@ td small {
   border-bottom: 0;
 }
 
+.profile-choice {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-choice:hover,
+.profile-choice:focus-visible {
+  background: rgba(31, 91, 71, 0.08);
+}
+
+.profile-choice:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.profile-choice small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+}
+
 .grant-row select {
   font-size: 10px;
   padding: 8px 10px;

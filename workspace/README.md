@@ -5,11 +5,11 @@ One internal sign-in with separate `/developer`, `/admin`, and `/staff` landing 
 ## What the developer controls
 
 - Create admin and staff identities with temporary passwords. Password replacement is required before accessing projects.
-- Assign **No access**, **User**, or **Admin** independently for each project. Being a workspace admin does not imply project access.
+- Assign **No access**, **User**, **Admin**, or **Admin + user** independently for each project. Being a workspace admin does not imply project access. The developer can open both profiles in every project.
 - Change workspace roles, suspend/reactivate accounts, reset passwords and review recent audit events.
 - Permission changes appear on the member's existing workspace within 30 seconds or when the tab regains focus. Changing project access invalidates previous project sessions without signing the person out of their workspace. Suspension, password reset and global sign-out revoke the workspace session too.
 
-Admins and staff see their assigned projects and an **Access project** button. A project opens in a **new tab**, exchanges a one-use code, restores its existing session format and enters the appropriate project view. No second password prompt is needed.
+Admins and staff see their assigned projects and an **Access project** button. The button asks which assigned profile to open. Legal Management also offers the separate lawyer and finance workspaces when those grants are present. The selected project opens in a **new tab**, exchanges a one-use code, restores its existing session format and enters the appropriate project view. No second password prompt is needed.
 
 ## Local setup
 

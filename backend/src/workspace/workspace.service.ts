@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type WorkspaceRole = 'DEVELOPER' | 'ADMIN' | 'STAFF';
 export type Access = 'ADMIN' | 'USER';
+export type Grant = Access | 'BOTH';
 export const PROJECTS = [
   { id: 'legal-admin', name: 'Legal Management', category: 'Legal operations', description: 'Cases, clients, assignments and firm administration.', port: 3002, path: '/dashboard' },
   { id: 'legal-staff', name: 'Counsel Workspace', category: 'Legal operations', description: 'Assigned matters, court dates and client collaboration.', port: 3003, path: '/dashboard' },
@@ -153,14 +154,15 @@ export class WorkspaceService implements OnModuleInit {
   developer(user: any) { if (user.role !== 'DEVELOPER') throw new ForbiddenException('Only the developer can manage identities and project access'); }
 
   async overview(user: any) {
-    const projects = PROJECTS.filter(p => user.role === 'DEVELOPER' || user.grants?.[p.id]).map(p => ({ ...p, access: user.role === 'DEVELOPER' ? 'ADMIN' : user.grants[p.id] }));
+    const projects = PROJECTS.filter(p => user.role === 'DEVELOPER' || user.grants?.[p.id]).map(p => ({ ...p, access: user.role === 'DEVELOPER' ? 'BOTH' : user.grants[p.id] }));
     return { user: this.safe(user), projects, ...(user.role === 'DEVELOPER' ? { users: (await this.db.workspaceUser.findMany()).map(u => this.safe(u)), audit: await this.db.workspaceAudit.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }) } : {}) };
   }
 
   private validateGrants(grants: any) {
     if (!grants || typeof grants !== 'object' || Array.isArray(grants)) throw new BadRequestException('Invalid project permissions');
     for (const [id, access] of Object.entries(grants)) {
-      if (!PROJECTS.some(p => p.id === id) || !['ADMIN', 'USER'].includes(access as string)) throw new BadRequestException('Unknown project or access level');
+      if (!PROJECTS.some(p => p.id === id) || !['ADMIN', 'USER', 'BOTH'].includes(access as string)) throw new BadRequestException('Unknown project or access level');
+      if (id === 'legal-admin' && access !== 'ADMIN') throw new BadRequestException('Legal Management grants admin access; assign Counsel Workspace separately for lawyer access');
     }
     return grants;
   }
@@ -216,16 +218,21 @@ export class WorkspaceService implements OnModuleInit {
     return { ok: true };
   }
 
-  private access(user: any, project: string): Access {
+  private access(user: any, project: string, requested?: Access): Access {
     if (!PROJECTS.some(p => p.id === project)) throw new BadRequestException('Unknown project');
-    const access = user.role === 'DEVELOPER' ? 'ADMIN' : user.grants?.[project];
-    if (!access || user.mustChangePassword) throw new ForbiddenException('You do not have access to this project');
+    if (requested !== undefined && !['ADMIN', 'USER'].includes(requested)) throw new BadRequestException('Choose an admin or user profile');
+    const grant: Grant | undefined = user.role === 'DEVELOPER' ? 'BOTH' : user.grants?.[project];
+    if (!grant || user.mustChangePassword) throw new ForbiddenException('You do not have access to this project');
+    const access = requested || (grant === 'BOTH' ? 'ADMIN' : grant);
+    if (grant !== 'BOTH' && grant !== access) throw new ForbiddenException('You do not have access to this profile');
+    if (project === 'legal-admin' && access === 'USER') throw new ForbiddenException('Use the Counsel Workspace for a lawyer profile');
     return access;
   }
 
   private projectUrl(project: string, access: Access) {
     const prefix = `WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}`;
-    const value = process.env[`${prefix}_${access}_URL`] || process.env[`${prefix}_URL`];
+    const destination = project === 'legal-staff' ? 'USER' : access;
+    const value = process.env[`${prefix}_${destination}_URL`] || process.env[`${prefix}_URL`];
     if (value) {
       try {
         const url = new URL(value);
@@ -235,12 +242,12 @@ export class WorkspaceService implements OnModuleInit {
       } catch {}
     }
     const fallback = PRODUCTION_PROJECT_URLS[project];
-    if (fallback) return access === 'ADMIN' ? fallback.admin : fallback.user;
+    if (fallback) return destination === 'ADMIN' ? fallback.admin : fallback.user;
     throw new ServiceUnavailableException('Project URL is not configured');
   }
 
-  async launch(user: any, project: string) {
-    const access = this.access(user, project);
+  async launch(user: any, project: string, requested?: Access) {
+    const access = this.access(user, project, requested);
     const origin = this.projectUrl(project, access);
     const code = randomBytes(32).toString('base64url');
     await this.db.workspaceCode.create({
@@ -248,6 +255,7 @@ export class WorkspaceService implements OnModuleInit {
         id: createHash('sha256').update(code).digest('hex'),
         userId: user.id,
         project,
+        access,
         version: user.version,
         accessVersion: user.accessVersion || 1,
         expiresAt: new Date(Date.now() + 180000),
@@ -274,7 +282,7 @@ export class WorkspaceService implements OnModuleInit {
     if (!row) throw new UnauthorizedException('This project link has already been used');
     const user = await this.db.workspaceUser.findUnique({ where: { id: row.userId } });
     if (!user?.active || user.version !== row.version || (user.accessVersion || 1) !== row.accessVersion) throw new UnauthorizedException('Access revoked');
-    const access = this.access(user, project);
+    const access = this.access(user, project, row.access);
     let legacy = await this.db.user.findUnique({ where: { email: user.email } });
     if (!legacy) legacy = await this.db.user.create({ data: { name: user.name, email: user.email, role: 'LAWYER', password: await bcrypt.hash(randomBytes(32).toString('hex'), 10) } });
     const token = this.sign({ sub: user.id, kind: 'project', project, access, version: user.version, accessVersion: user.accessVersion || 1, legacyId: legacy.id }, 28800);
@@ -289,7 +297,7 @@ export class WorkspaceService implements OnModuleInit {
   async inspect(token: string, project?: string) {
     const { user, payload } = await this.verify(token, 'project');
     if (project && payload.project !== project) throw new ForbiddenException('This session belongs to another project');
-    const access = this.access(user, payload.project);
+    const access = this.access(user, payload.project, payload.access);
     if (payload.access !== access) throw new UnauthorizedException('Project access has changed');
     return { user: this.projectUser(user, payload.legacyId, payload.project, access), access, project: payload.project };
   }

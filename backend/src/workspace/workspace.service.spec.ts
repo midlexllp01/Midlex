@@ -39,6 +39,33 @@ describe('Workspace access and project SSO', () => {
     const code = [...store.rows.codes.values()][0];
     expect(new Date(code.expiresAt).getTime() - Date.now()).toBeGreaterThan(170000);
   });
+  it('lets developers and dual-granted staff choose a project profile without escalating single grants', async () => {
+    expect((await service.overview(owner)).projects.find(p => p.id === 'cbt')?.access).toBe('BOTH');
+    await service.update(owner, member.id, { grants: { cbt: 'BOTH' } });
+    const dualGranted = await store.db.workspaceUser.findUnique({ where: { id: member.id } });
+    for (const actor of [owner, dualGranted]) {
+      for (const profile of ['USER', 'ADMIN'] as const) {
+        const link = await service.launch(actor, 'cbt', profile);
+        expect(new URL(link.url).origin).toBe(profile === 'ADMIN' ? 'https://admin.cbt.midlex.xyz' : 'https://cbt.midlex.xyz');
+        const code = new URLSearchParams(new URL(link.url).hash.slice(1)).get('code')!;
+        const session = await service.redeem('cbt', code, 'test-cbt-server-secret');
+        expect(session.access).toBe(profile);
+        expect((await service.inspect(session.token, 'cbt')).access).toBe(profile);
+      }
+    }
+    const userOnly = await service.update(owner, member.id, { grants: { cbt: 'USER' } });
+    await expect(service.launch(userOnly, 'cbt', 'ADMIN')).rejects.toThrow('profile');
+  });
+  it('keeps the separate legal admin and lawyer handoffs on their matching portals', async () => {
+    await expect(service.launch(owner, 'legal-admin', 'USER')).rejects.toThrow('Counsel Workspace');
+    const admin = await service.launch(owner, 'legal-admin', 'ADMIN');
+    const lawyer = await service.launch(owner, 'legal-staff', 'USER');
+    const counselAdmin = await service.launch(owner, 'legal-staff', 'ADMIN');
+    expect(new URL(admin.url).origin).toBe('https://legal-admin.midlex.xyz');
+    expect(new URL(lawyer.url).origin).toBe('https://lawyer.midlex.xyz');
+    expect(new URL(counselAdmin.url).origin).toBe('https://lawyer.midlex.xyz');
+    await expect(service.update(owner, member.id, { grants: { 'legal-admin': 'BOTH' } })).rejects.toThrow('Legal Management grants admin access');
+  });
   it('rejects login for an account that was never provisioned', async () => {
     await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');
   });
