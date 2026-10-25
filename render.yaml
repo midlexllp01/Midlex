@@ -54,9 +54,9 @@ services:
       - key: WORKSPACE_PROJECT_HRMS_USER_URL
         value: https://hrms.midlex.xyz
       - key: WORKSPACE_PROJECT_CBT_ADMIN_URL
-        value: https://midlex-cbt-admin.vercel.app
+        value: https://admin.cbt.midlex.xyz
       - key: WORKSPACE_PROJECT_CBT_USER_URL
-        value: https://midlex-cbt.vercel.app
+        value: https://cbt.midlex.xyz
       - key: WORKSPACE_PROJECT_AI_ADMIN_URL
         value: https://admin.ai.midlex.xyz
       - key: WORKSPACE_PROJECT_AI_USER_URL

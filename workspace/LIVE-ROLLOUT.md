@@ -9,7 +9,7 @@ The workspace backend is the identity and project-grant authority. Each existing
 | Legal management | `https://lawyer.midlex.xyz` | `https://legal-admin.midlex.xyz` |
 | Counsel workspace | `https://lawyer.midlex.xyz` | `https://legal-admin.midlex.xyz` |
 | Finance | `https://payment-portal.midlex.xyz` | `https://payment-portal.midlex.xyz` |
-| CBT | `https://midlex-cbt.vercel.app` | `https://midlex-cbt-admin.vercel.app` |
+| CBT | `https://cbt.midlex.xyz` | `https://admin.cbt.midlex.xyz` |
 | HRMS | `https://hrms.midlex.xyz` | `https://admin.hrms.midlex.xyz` |
 | Realty | `https://reality.midlex.xyz` | `https://admin.reality.midlex.xyz` |
 | AI | `https://ai.midlex.xyz` | `https://admin.ai.midlex.xyz` |

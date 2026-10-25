@@ -33,8 +33,8 @@ export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: stri
     user: 'https://payment-portal.midlex.xyz',
   },
   'cbt': {
-    admin: 'https://midlex-cbt-admin.vercel.app',
-    user: 'https://midlex-cbt.vercel.app',
+    admin: 'https://admin.cbt.midlex.xyz',
+    user: 'https://cbt.midlex.xyz',
   },
   'mip': {
     admin: 'https://admin.mip.midlex.xyz',
