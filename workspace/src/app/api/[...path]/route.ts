@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 const allowed = /^(login|me|logout|password|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+)$/;
 const sessionCookie = 'midlex_workspace';
+const sessionMaxAge = 60 * 60 * 24 * 400;
 
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const path = (await context.params).path.join('/');
@@ -28,7 +29,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     const upstream = await fetch(`${apiUrl.replace(/\/$/, '')}/workspace/${path}`, {
       method: request.method,
       cache: 'no-store',
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(45000),
       headers: {
         'Content-Type': 'application/json',
         ...(token && path !== 'login' ? { Authorization: `Bearer ${token}` } : {}),
@@ -39,13 +40,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     const { token: issuedToken, ...publicData } = data;
     const response = NextResponse.json(publicData, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } });
 
-    if (upstream.ok && path === 'login' && typeof issuedToken === 'string') {
-      response.cookies.set(sessionCookie, issuedToken, {
+    const renewedToken = path === 'login' || path === 'password' ? issuedToken : token;
+    if (upstream.ok && path !== 'logout' && typeof renewedToken === 'string') {
+      response.cookies.set(sessionCookie, renewedToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: 28800,
+        maxAge: sessionMaxAge,
       });
     }
     if (path === 'logout' || upstream.status === 401 && path !== 'login') response.cookies.delete(sessionCookie);

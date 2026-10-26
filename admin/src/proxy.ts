@@ -32,7 +32,7 @@ export async function proxy(request: NextRequest) {
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ project: projectId }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(45000),
     });
 
     if (!response.ok) {
@@ -49,7 +49,9 @@ export async function proxy(request: NextRequest) {
       return new NextResponse('Your developer has assigned user access. Admin access is required for this page.', { status: 403 });
     }
 
-    return NextResponse.next();
+    const next = NextResponse.next();
+    next.cookies.set(cookieName, token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 400 });
+    return next;
   } catch {
     return NextResponse.next();
   }

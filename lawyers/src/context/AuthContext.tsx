@@ -49,12 +49,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('midlex_token');
-    localStorage.removeItem('midlex_user');
+  const logout = async () => {
+    const destination = localStorage.getItem('midlex_workspace_return');
+    if (destination) {
+      try {
+        const response = await fetch('/api/sso', { method: 'DELETE' });
+        if (!response.ok) throw new Error('Unable to sign out');
+      } catch { window.alert('Unable to sign out. Please try again.'); return; }
+    }
+    for (const key of ['midlex_token', 'midlex_user', 'midlex_client_dept', 'midlex_workspace_return']) localStorage.removeItem(key);
     setToken(null);
     setUser(null);
-    router.push('/login');
+    if (destination && ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(destination)) window.location.assign(destination);
+    else router.push('/login');
   };
 
   return (

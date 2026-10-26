@@ -12,7 +12,8 @@ export class WorkspaceController {
   @Delete('users/:id') async remove(@Headers('authorization') auth: string, @Param('id') id: string) { return this.service.delete(await this.service.session(this.bearer(auth)), id); }
   @Post('password') async password(@Headers('authorization') auth: string, @Body() body: any) { return this.service.changePassword(await this.service.session(this.bearer(auth), true), body); }
   @Post('logout') async logout(@Headers('authorization') auth: string) { return this.service.logout(await this.service.session(this.bearer(auth), true)); }
-  @Post('launch/:project') async launch(@Headers('authorization') auth: string, @Param('project') project: string, @Body() body: any) { return this.service.launch(await this.service.session(this.bearer(auth)), project, body?.access); }
+  @Post('project-logout') logoutProject(@Headers('authorization') auth: string) { return this.service.logoutProject(this.bearer(auth)); }
+  @Post('launch/:project') async launch(@Headers('authorization') auth: string, @Param('project') project: string, @Body() body: any) { return this.service.launch(await this.service.session(this.bearer(auth)), project, body?.access, body?.returnUrl); }
   @Post('redeem') redeem(@Headers('x-project-secret') secret: string, @Body() body: any) { return this.service.redeem(body.project, body.code, secret); }
   @Post('introspect') inspect(@Headers('authorization') auth: string, @Body() body: any) { return this.service.inspect(this.bearer(auth), body.project); }
 }

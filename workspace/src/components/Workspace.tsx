@@ -27,13 +27,6 @@ export default function Workspace({ role }: { role: string }) {
       const next = await api('me');
       const userRole = next.user.role.toLowerCase();
       if (userRole !== role) {
-        if (typeof window !== 'undefined' && window.location.hostname.includes('midlex.xyz')) {
-          const targetDomain = `${userRole}.midlex.xyz`;
-          if (window.location.hostname !== targetDomain) {
-            window.location.href = `https://${targetDomain}`;
-            return;
-          }
-        }
         router.replace(`/${userRole}`);
         return;
       }
@@ -69,7 +62,7 @@ export default function Workspace({ role }: { role: string }) {
     if (!newTab) { setError('Allow pop-ups for this workspace to open your project in a new tab.'); return; }
     newTab.opener = null; newTab.document.title = 'Opening Midlex project'; newTab.document.body.textContent = 'Preparing your secure project session…';
     setLaunching(project.id); setError('');
-    try { const result = await api(`launch/${project.id}`, 'POST', { access }); newTab.location.replace(result.url); setProfileProject(null); }
+    try { const result = await api(`launch/${project.id}`, 'POST', { access, returnUrl: window.location.origin }); newTab.location.replace(result.url); setProfileProject(null); }
     catch (e) { newTab.close(); setError(e instanceof Error ? e.message : 'Unable to open project'); } finally { setLaunching(''); }
   }
   async function toggleRolePrivileges(person: Person) {

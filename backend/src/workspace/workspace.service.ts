@@ -113,8 +113,10 @@ export class WorkspaceService implements OnModuleInit {
     return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, grants: user.grants || {}, createdAt: user.createdAt };
   }
 
-  private sign(payload: any, expiresIn: number) {
-    return this.jwt.sign({ ...payload, iss: 'midlex-workspace' }, { secret: this.secret(), expiresIn, algorithm: 'HS256' });
+  private sign(payload: any) {
+    // Access remains valid until the account/session version changes on logout,
+    // password reset, suspension or a project-grant update.
+    return this.jwt.sign({ ...payload, iss: 'midlex-workspace' }, { secret: this.secret(), algorithm: 'HS256' });
   }
 
   private async verify(token: string, kind: string) {
@@ -148,7 +150,7 @@ export class WorkspaceService implements OnModuleInit {
 
     this.attempts.delete(key);
     await this.audit(user.id, 'SIGNED_IN', user.id);
-    return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }, 28800), user: this.safe(user) };
+    return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }), user: this.safe(user) };
   }
 
   developer(user: any) { if (user.role !== 'DEVELOPER') throw new ForbiddenException('Only the developer can manage identities and project access'); }
@@ -210,11 +212,18 @@ export class WorkspaceService implements OnModuleInit {
       return { password, mustChangePassword: false, version: current.version + 1 };
     });
     await this.audit(user.id, 'PASSWORD_CHANGED', user.id);
-    return { token: this.sign({ sub: updated.id, kind: 'workspace', version: updated.version }, 28800), user: this.safe(updated) };
+    return { token: this.sign({ sub: updated.id, kind: 'workspace', version: updated.version }), user: this.safe(updated) };
   }
 
   async logout(user: any) {
     await this.db.mutateWorkspaceUser(user.id, current => ({ version: current.version + 1 }));
+    return { ok: true };
+  }
+
+  async logoutProject(token: string) {
+    const { user } = await this.verify(token, 'project');
+    await this.db.mutateWorkspaceUser(user.id, current => ({ accessVersion: (current.accessVersion || 1) + 1 }));
+    await this.audit(user.id, 'PROJECTS_SIGNED_OUT', user.id);
     return { ok: true };
   }
 
@@ -246,9 +255,10 @@ export class WorkspaceService implements OnModuleInit {
     throw new ServiceUnavailableException('Project URL is not configured');
   }
 
-  async launch(user: any, project: string, requested?: Access) {
+  async launch(user: any, project: string, requested?: Access, returnUrl?: string) {
     const access = this.access(user, project, requested);
     const origin = this.projectUrl(project, access);
+    const workspaceUrl = ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
     const code = randomBytes(32).toString('base64url');
     await this.db.workspaceCode.create({
       data: {
@@ -256,6 +266,7 @@ export class WorkspaceService implements OnModuleInit {
         userId: user.id,
         project,
         access,
+        workspaceUrl,
         version: user.version,
         accessVersion: user.accessVersion || 1,
         expiresAt: new Date(Date.now() + 180000),
@@ -285,8 +296,8 @@ export class WorkspaceService implements OnModuleInit {
     const access = this.access(user, project, row.access);
     let legacy = await this.db.user.findUnique({ where: { email: user.email } });
     if (!legacy) legacy = await this.db.user.create({ data: { name: user.name, email: user.email, role: 'LAWYER', password: await bcrypt.hash(randomBytes(32).toString('hex'), 10) } });
-    const token = this.sign({ sub: user.id, kind: 'project', project, access, version: user.version, accessVersion: user.accessVersion || 1, legacyId: legacy.id }, 28800);
-    return { token, user: this.projectUser(user, legacy.id, project, access), access, project, path: project === 'realty' && access === 'ADMIN' ? '/admin' : ['cbt', 'mip'].includes(project) && access === 'ADMIN' ? '/dashboard/admin' : PROJECTS.find(p => p.id === project)!.path };
+    const token = this.sign({ sub: user.id, kind: 'project', project, access, version: user.version, accessVersion: user.accessVersion || 1, legacyId: legacy.id });
+    return { token, user: this.projectUser(user, legacy.id, project, access), access, project, workspaceUrl: row.workspaceUrl || 'https://developer.midlex.xyz', path: project === 'realty' && access === 'ADMIN' ? '/admin' : ['cbt', 'mip'].includes(project) && access === 'ADMIN' ? '/dashboard/admin' : PROJECTS.find(p => p.id === project)!.path };
   }
 
   private projectUser(user: any, id: string, project: string, access: Access) {

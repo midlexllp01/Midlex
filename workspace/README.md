@@ -11,6 +11,8 @@ One internal sign-in with separate `/developer`, `/admin`, and `/staff` landing 
 
 Admins and staff see their assigned projects and an **Access project** button. The button asks which assigned profile to open. Legal Management also offers the separate lawyer and finance workspaces when those grants are present. The selected project opens in a **new tab**, exchanges a one-use code, restores its existing session format and enters the appropriate project view. No second password prompt is needed.
 
+Workspace and project sessions remain valid until sign-out or a server-side revocation such as a password reset, account suspension, or changed project grant. The workspace renews its secure cookie during use; project portals renew theirs during validated visits. Browsers cap persistent cookies to about 400 days and users can clear them, so a login cannot be guaranteed to last literally forever. One-use project launch codes still expire after three minutes and cannot be reused.
+
 ## Local setup
 
 From `Midlex-LLP`:

@@ -66,6 +66,14 @@ describe('Workspace access and project SSO', () => {
     expect(new URL(counselAdmin.url).origin).toBe('https://lawyer.midlex.xyz');
     await expect(service.update(owner, member.id, { grants: { 'legal-admin': 'BOTH' } })).rejects.toThrow('Legal Management grants admin access');
   });
+  it('returns only an approved workspace origin after project handoff', async () => {
+    const approved = await service.launch(member, 'cbt', 'USER', 'https://staff.midlex.xyz');
+    const approvedCode = new URLSearchParams(new URL(approved.url).hash.slice(1)).get('code')!;
+    expect((await service.redeem('cbt', approvedCode, 'test-cbt-server-secret')).workspaceUrl).toBe('https://staff.midlex.xyz');
+    const rejected = await service.launch(member, 'cbt', 'USER', 'https://other.example');
+    const rejectedCode = new URLSearchParams(new URL(rejected.url).hash.slice(1)).get('code')!;
+    expect((await service.redeem('cbt', rejectedCode, 'test-cbt-server-secret')).workspaceUrl).toBe('https://developer.midlex.xyz');
+  });
   it('rejects login for an account that was never provisioned', async () => {
     await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');
   });
@@ -148,6 +156,19 @@ describe('Workspace access and project SSO', () => {
     const login = await service.login(member.email, 'staff-password-123', 'staff'); await service.logout(member);
     await expect(service.session(login.token)).rejects.toThrow('revoked');
     await expect(service.update(owner, owner.id, { active: false })).rejects.toThrow('owner account');
+  });
+  it('keeps signed-in sessions valid until sign-out and revokes project sessions independently', async () => {
+    const login = await service.login(member.email, 'staff-password-123', 'staff');
+    const project = await service.redeem('cbt', await launch(), 'test-cbt-server-secret');
+    const workspaceClaims = JSON.parse(Buffer.from(login.token.split('.')[1], 'base64url').toString());
+    const projectClaims = JSON.parse(Buffer.from(project.token.split('.')[1], 'base64url').toString());
+    expect(workspaceClaims.exp).toBeUndefined();
+    expect(projectClaims.exp).toBeUndefined();
+    await service.logoutProject(project.token);
+    await expect(service.inspect(project.token, 'cbt')).rejects.toThrow('revoked');
+    expect((await service.session(login.token)).id).toBe(member.id);
+    await service.logout(member);
+    await expect(service.session(login.token)).rejects.toThrow('revoked');
   });
   it('preserves monotonically increasing revocation versions during concurrent updates', async () => {
     const session = await service.redeem('cbt', await launch(), 'test-cbt-server-secret');

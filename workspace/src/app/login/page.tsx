@@ -41,14 +41,6 @@ export default function Login() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const userRole = data.user.role.toLowerCase();
-      const host = window.location.hostname;
-      if (host.includes('midlex.xyz')) {
-        const targetDomain = `${userRole}.midlex.xyz`;
-        if (host !== targetDomain) {
-          window.location.href = `https://${targetDomain}`;
-          return;
-        }
-      }
       router.replace(`/${userRole}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign in failed');
