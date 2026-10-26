@@ -53,7 +53,7 @@ export async function proxy(request: NextRequest) {
     next.cookies.set(cookieName, token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 400 });
     return next;
   } catch {
-    return NextResponse.next();
+    return new NextResponse('Unable to validate workspace access. Please try again.', { status: 503 });
   }
 }
 
