@@ -61,7 +61,7 @@ describe('Workspace access and project SSO', () => {
     const admin = await service.launch(owner, 'legal-admin', 'ADMIN');
     const lawyer = await service.launch(owner, 'legal-staff', 'USER');
     const counselAdmin = await service.launch(owner, 'legal-staff', 'ADMIN');
-    expect(new URL(admin.url).origin).toBe('https://legal-admin.midlex.xyz');
+    expect(new URL(admin.url).origin).toBe('https://admin.midlex.xyz');
     expect(new URL(lawyer.url).origin).toBe('https://lawyer.midlex.xyz');
     expect(new URL(counselAdmin.url).origin).toBe('https://lawyer.midlex.xyz');
     await expect(service.update(owner, member.id, { grants: { 'legal-admin': 'BOTH' } })).rejects.toThrow('Legal Management grants admin access');

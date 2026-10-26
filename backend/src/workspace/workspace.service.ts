@@ -22,11 +22,11 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://legal-admin.midlex.xyz',
+    admin: 'https://admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://legal-admin.midlex.xyz',
+    admin: 'https://admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'finance': {
@@ -258,7 +258,7 @@ export class WorkspaceService implements OnModuleInit {
   async launch(user: any, project: string, requested?: Access, returnUrl?: string) {
     const access = this.access(user, project, requested);
     const origin = this.projectUrl(project, access);
-    const workspaceUrl = ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
+    const workspaceUrl = ['https://staff.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
     const code = randomBytes(32).toString('base64url');
     await this.db.workspaceCode.create({
       data: {

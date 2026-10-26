@@ -46,9 +46,9 @@ services:
       - key: WORKSPACE_URL
         value: https://developer.midlex.xyz
       - key: WORKSPACE_PROJECT_LEGAL_ADMIN_ADMIN_URL
-        value: https://legal-admin.midlex.xyz
+        value: https://admin.midlex.xyz
       - key: WORKSPACE_PROJECT_LEGAL_STAFF_ADMIN_URL
-        value: https://legal-admin.midlex.xyz
+        value: https://admin.midlex.xyz
       - key: WORKSPACE_PROJECT_HRMS_ADMIN_URL
         value: https://admin.hrms.midlex.xyz
       - key: WORKSPACE_PROJECT_HRMS_USER_URL
