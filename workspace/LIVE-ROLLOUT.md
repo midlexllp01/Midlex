@@ -22,6 +22,10 @@ The workspace pages at `developer.midlex.xyz`, `staff.midlex.xyz`, and `admin.mi
 
 Keep GitHub as the source of truth: update each app's own repository, configure the corresponding Vercel project and Render service, deploy, then test the live origin. Changes in a local sibling project folder do not update those independent deployments.
 
+## Pending release (26 October 2026)
+
+The GitHub draft branches now include a project profile chooser, sessions that remain valid until server-side revocation, renewed browser cookies, and project sign-out that returns to the originating workspace. These changes are not yet live. Deploy the central identity backend first, then the workspace and each updated project frontend/API. The Vercel CLI reported `Not authorized` when preview deployment was attempted; reconnect the deployment account before rollout. Confirm the previously exposed credentials have been rotated before deploying the central backend. Browser cookies are limited to roughly 400 days and can be deleted by users, so literal persistence until logout cannot be guaranteed.
+
 ## Deployment order
 
 1. Rotate all previously committed workspace and project admin passwords and secrets. Remove those credentials from deployed environment settings where they are no longer needed. Existing workspace passwords are stored as hashes; reset affected accounts through the central identity store so previous passwords stop working.
