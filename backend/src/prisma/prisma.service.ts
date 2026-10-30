@@ -151,6 +151,7 @@ export class PrismaService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    const production = process.env.NODE_ENV === 'production';
     if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() && process.env.MIDLEX_OFFLINE !== 'true') {
       await this.initPostgres();
     } else {
@@ -161,9 +162,11 @@ export class PrismaService implements OnModuleInit {
           this.isOffline = false;
         } catch (err) {
           console.warn('[PrismaService] Failed to initialize Firebase Firestore, falling back to OFFLINE mode.', err);
+          if (production) throw err;
           this.isOffline = true;
         }
       } else {
+        if (production) throw new Error('[PrismaService] Persistent storage is not configured. Set DATABASE_URL or Firebase Admin credentials before starting production.');
         this.isOffline = true;
         console.log('[PrismaService] Running in OFFLINE local JSON database mode.');
       }
@@ -218,6 +221,7 @@ export class PrismaService implements OnModuleInit {
       }
     } catch (err) {
       console.error('[PrismaService] PostgreSQL initialization failed, falling back to offline mode:', err);
+      if (process.env.NODE_ENV === 'production') throw err;
       this.isPostgres = false;
       this.isOffline = true;
     }
