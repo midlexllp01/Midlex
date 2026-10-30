@@ -340,6 +340,11 @@ export class PrismaService implements OnModuleInit {
     return getStorage(this.app).bucket(this.bucketName);
   }
 
+  /** Ensure Firebase Admin is initialized before Auth or Firestore calls. */
+  ensureFirebaseApp() {
+    return this.app;
+  }
+
   private get app() {
     if (this.isOffline) return null as any;
     if (getApps().length) return getApps()[0]!;

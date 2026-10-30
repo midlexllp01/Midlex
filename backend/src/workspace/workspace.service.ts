@@ -157,6 +157,9 @@ export class WorkspaceService implements OnModuleInit {
 
   async googleLogin(idToken: string, ip: string) {
     if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw new UnauthorizedException('Invalid Google sign-in token');
+    if (!getApps().length) {
+      try { this.db.ensureFirebaseApp(); } catch { throw new ServiceUnavailableException('Google sign-in is not configured on the identity service'); }
+    }
     if (!getApps().length) throw new ServiceUnavailableException('Google sign-in is not configured on the identity service');
     let decoded: any;
     try { decoded = await getAuth().verifyIdToken(idToken, true); } catch { throw new UnauthorizedException('Google sign-in could not be verified'); }
