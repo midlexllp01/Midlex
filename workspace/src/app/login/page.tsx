@@ -45,7 +45,12 @@ export default function Login() {
     if (!project || !returnTo) return false;
     try {
       const target = new URL(returnTo);
-      if (!['https:', 'http:'].includes(target.protocol) || !['cbt.midlex.xyz', 'admin.cbt.midlex.xyz'].includes(target.hostname)) return false;
+      const allowedProjectHosts = new Set([
+        'cbt.midlex.xyz', 'admin.cbt.midlex.xyz', 'midlex-admin.midlex.xyz', 'lawyer.midlex.xyz',
+        'payment-portal.midlex.xyz', 'hrms.midlex.xyz', 'admin.hrms.midlex.xyz', 'reality.midlex.xyz',
+        'admin.reality.midlex.xyz', 'ai.midlex.xyz',
+      ]);
+      if (!['https:', 'http:'].includes(target.protocol) || !allowedProjectHosts.has(target.hostname)) return false;
       const result = await fetch(`/api/launch/${encodeURIComponent(project)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnUrl: window.location.origin }) });
       const data = await result.json();
       if (!result.ok || typeof data.url !== 'string') throw new Error(data.message || 'Unable to open the project');
