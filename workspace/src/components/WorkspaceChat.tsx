@@ -30,7 +30,7 @@ export default function WorkspaceChat({ canManage, currentUserId, autoOpen = fal
   }
   const unread = inbox.unread || 0;
   return <>
-    <button type="button" className="secondary compact" onClick={() => { setOpen(true); setError(''); void refresh(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, position: 'relative' }}><MessageCircle size={15}/> Messages{unread > 0 && <span className="badge admin-badge">{unread}</span>}</button>
+    <button type="button" className="secondary compact" onClick={() => { setOpen(true); setError(''); void refresh(); }} aria-label={unread > 0 ? `${unread} unread messages` : 'Open messages'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, position: 'relative' }}><MessageCircle size={15}/> Messages{unread > 0 && <span aria-label={`${unread} unread messages`} style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#dc2626', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, lineHeight: 1 }}>{unread > 99 ? '99+' : unread}</span>}</button>
     {open && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="chat-title" style={{ maxWidth: 720 }}><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div><button aria-label="Close messages" onClick={() => setOpen(false)}><X size={20}/></button></header>
       {error && <div className="notice error" role="alert">{error}</div>}
       {!conversation && <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
