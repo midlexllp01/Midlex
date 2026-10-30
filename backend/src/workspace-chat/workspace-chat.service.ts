@@ -26,9 +26,8 @@ export class WorkspaceChatService {
     return user ? { id: user.id, name: user.name, email: user.email, role: user.role } : { id };
   }
   async recipients(actor: WorkspaceUser) {
-    if (!this.canManage(actor)) throw new ForbiddenException('Only Admin or Developer accounts can view chat recipients');
     const users = await this.db.workspaceUser.findMany();
-    return users.filter((user: WorkspaceUser) => user.active && user.id !== actor.id).map((user: WorkspaceUser) => ({ id: user.id, name: user.name, email: user.email, role: user.role }));
+    return users.filter((user: WorkspaceUser) => user.active && user.id !== actor.id && (this.canManage(actor) || user.role === 'ADMIN' || user.role === 'DEVELOPER')).map((user: WorkspaceUser) => ({ id: user.id, name: user.name, email: user.email, role: user.role }));
   }
   private async messages(conversationId: string) {
     const rows = await this.db.workspaceMessage.findMany({ where: { conversationId }, orderBy: { createdAt: 'asc' } });
@@ -54,12 +53,11 @@ export class WorkspaceChatService {
   }
 
   async createConversation(actor: WorkspaceUser, body: any) {
-    if (!this.canManage(actor)) throw new ForbiddenException('Only Admin or Developer accounts can start conversations');
     const userId = this.text(body?.userId, 'Recipient');
     if (userId === actor.id) throw new BadRequestException('Choose another workspace user');
     const recipient = await this.db.workspaceUser.findUnique({ where: { id: userId } });
-    if (!recipient?.active) throw new NotFoundException('Active recipient not found');
-    const conversation = await this.db.workspaceConversation.create({ data: { type: 'DIRECT', adminId: actor.id, userId, broadcastId: null } });
+    if (!recipient?.active || (!this.canManage(actor) && recipient.role !== 'ADMIN' && recipient.role !== 'DEVELOPER')) throw new NotFoundException('Active recipient not found');
+    const conversation = await this.db.workspaceConversation.create({ data: { type: 'DIRECT', adminId: this.canManage(actor) ? actor.id : recipient.id, userId: this.canManage(actor) ? userId : actor.id, broadcastId: null } });
     await this.sendInConversation(actor, conversation, body?.content);
     await this.audit(actor.id, 'CHAT_STARTED', userId);
     return { ...conversation, messages: await this.messages(conversation.id) };
