@@ -25,7 +25,32 @@ export default function Login() {
     } else {
       setRole('admin');
     }
+    if (params.get('project') && params.get('return_to')) {
+      void fetch('/api/me', { cache: 'no-store' }).then(async response => {
+        if (response.ok) await continueToProject();
+      }).catch(() => undefined);
+    }
   }, []);
+
+  // A project may send an unauthenticated visitor here. After the central
+  // login succeeds, return them to that project through the normal one-use
+  // server handoff. No password or workspace token is shared with the project.
+  async function continueToProject() {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const project = params.get('project');
+    const returnTo = params.get('return_to');
+    if (!project || !returnTo) return false;
+    try {
+      const target = new URL(returnTo);
+      if (!['https:', 'http:'].includes(target.protocol) || !['cbt.midlex.xyz', 'admin.cbt.midlex.xyz'].includes(target.hostname)) return false;
+      const result = await fetch(`/api/launch/${encodeURIComponent(project)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnUrl: window.location.origin }) });
+      const data = await result.json();
+      if (!result.ok || typeof data.url !== 'string') throw new Error(data.message || 'Unable to open the project');
+      window.location.replace(data.url);
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open the project'); return true; }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +66,7 @@ export default function Login() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const userRole = data.user.role.toLowerCase();
-      router.replace(`/${userRole}`);
+      if (!(await continueToProject())) router.replace(`/${userRole}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign in failed');
     } finally {
