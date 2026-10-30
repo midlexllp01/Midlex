@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const allowed = /^(login|me|logout|password|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+)$/;
+const allowed = /^(login|google|me|logout|password|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+)$/;
 const sessionCookie = 'midlex_workspace';
 const sessionMaxAge = 60 * 60 * 24 * 400;
 
@@ -20,7 +20,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
 
   const jar = await cookies();
   const token = jar.get(sessionCookie)?.value;
-  if (path !== 'login' && !token) return NextResponse.json({ message: 'Please sign in' }, { status: 401 });
+  if (!['login', 'google'].includes(path) && !token) return NextResponse.json({ message: 'Please sign in' }, { status: 401 });
 
   const apiUrl = process.env.WORKSPACE_API_URL;
   if (!apiUrl) return NextResponse.json({ message: 'Workspace service is not configured' }, { status: 503 });
@@ -40,7 +40,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     const { token: issuedToken, ...publicData } = data;
     const response = NextResponse.json(publicData, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } });
 
-    const renewedToken = path === 'login' || path === 'password' ? issuedToken : token;
+    const renewedToken = ['login', 'google', 'password'].includes(path) ? issuedToken : token;
     if (upstream.ok && path !== 'logout' && typeof renewedToken === 'string') {
       response.cookies.set(sessionCookie, renewedToken, {
         httpOnly: true,

@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, OnModuleInit, Serv
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type WorkspaceRole = 'DEVELOPER' | 'ADMIN' | 'STAFF';
@@ -150,6 +152,21 @@ export class WorkspaceService implements OnModuleInit {
 
     this.attempts.delete(key);
     await this.audit(user.id, 'SIGNED_IN', user.id);
+    return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }), user: this.safe(user) };
+  }
+
+  async googleLogin(idToken: string, ip: string) {
+    if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw new UnauthorizedException('Invalid Google sign-in token');
+    if (!getApps().length) throw new ServiceUnavailableException('Google sign-in is not configured on the identity service');
+    let decoded: any;
+    try { decoded = await getAuth().verifyIdToken(idToken, true); } catch { throw new UnauthorizedException('Google sign-in could not be verified'); }
+    const email = typeof decoded.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+    if (!decoded.email_verified || !email || typeof decoded.uid !== 'string') throw new UnauthorizedException('Use a verified Google email address');
+    const user = await this.db.workspaceUser.findUnique({ where: { email } });
+    if (!user || !user.active) throw new UnauthorizedException('No active Midlex workspace account exists for this Google email');
+    if (user.firebaseUid && user.firebaseUid !== decoded.uid) throw new UnauthorizedException('This workspace account is linked to a different Google account');
+    if (!user.firebaseUid) await this.db.mutateWorkspaceUser(user.id, current => ({ firebaseUid: decoded.uid }));
+    await this.audit(user.id, 'SIGNED_IN_GOOGLE', user.id);
     return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }), user: this.safe(user) };
   }
 
