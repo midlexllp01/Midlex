@@ -258,7 +258,7 @@ export class WorkspaceService implements OnModuleInit {
   async launch(user: any, project: string, requested?: Access, returnUrl?: string) {
     const access = this.access(user, project, requested);
     const origin = this.projectUrl(project, access);
-    const workspaceUrl = ['https://staff.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
+    const workspaceUrl = ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
     const code = randomBytes(32).toString('base64url');
     await this.db.workspaceCode.create({
       data: {

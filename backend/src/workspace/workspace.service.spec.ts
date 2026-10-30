@@ -61,7 +61,7 @@ describe('Workspace access and project SSO', () => {
     const admin = await service.launch(owner, 'legal-admin', 'ADMIN');
     const lawyer = await service.launch(owner, 'legal-staff', 'USER');
     const counselAdmin = await service.launch(owner, 'legal-staff', 'ADMIN');
-    expect(new URL(admin.url).origin).toBe('https://admin.midlex.xyz');
+    expect(new URL(admin.url).origin).toBe('https://midlex-admin.midlex.xyz');
     expect(new URL(lawyer.url).origin).toBe('https://lawyer.midlex.xyz');
     expect(new URL(counselAdmin.url).origin).toBe('https://lawyer.midlex.xyz');
     await expect(service.update(owner, member.id, { grants: { 'legal-admin': 'BOTH' } })).rejects.toThrow('Legal Management grants admin access');
@@ -73,6 +73,9 @@ describe('Workspace access and project SSO', () => {
     const rejected = await service.launch(member, 'cbt', 'USER', 'https://other.example');
     const rejectedCode = new URLSearchParams(new URL(rejected.url).hash.slice(1)).get('code')!;
     expect((await service.redeem('cbt', rejectedCode, 'test-cbt-server-secret')).workspaceUrl).toBe('https://developer.midlex.xyz');
+    const adminWorkspace = await service.launch(owner, 'cbt', 'ADMIN', 'https://admin.midlex.xyz');
+    const adminCode = new URLSearchParams(new URL(adminWorkspace.url).hash.slice(1)).get('code')!;
+    expect((await service.redeem('cbt', adminCode, 'test-cbt-server-secret')).workspaceUrl).toBe('https://admin.midlex.xyz');
   });
   it('rejects login for an account that was never provisioned', async () => {
     await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');
