@@ -165,9 +165,14 @@ export class WorkspaceService implements OnModuleInit {
     const user = await this.db.workspaceUser.findUnique({ where: { email } });
     if (!user || !user.active) throw new UnauthorizedException('No active Midlex workspace account exists for this Google email');
     if (user.firebaseUid && user.firebaseUid !== decoded.uid) throw new UnauthorizedException('This workspace account is linked to a different Google account');
-    if (!user.firebaseUid) await this.db.mutateWorkspaceUser(user.id, current => ({ firebaseUid: decoded.uid }));
+    const linked = await this.db.mutateWorkspaceUser(user.id, current => ({
+      firebaseUid: decoded.uid,
+      // A verified Google login satisfies the temporary-password requirement.
+      mustChangePassword: false,
+      version: current.mustChangePassword ? current.version + 1 : current.version,
+    }));
     await this.audit(user.id, 'SIGNED_IN_GOOGLE', user.id);
-    return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }), user: this.safe(user) };
+    return { token: this.sign({ sub: linked.id, kind: 'workspace', version: linked.version }), user: this.safe(linked) };
   }
 
   developer(user: any) { if (user.role !== 'DEVELOPER') throw new ForbiddenException('Only the developer can manage identities and project access'); }
