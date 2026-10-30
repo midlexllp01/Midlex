@@ -1,5 +1,6 @@
 'use client';
 import Brand from './Brand';
+import WorkspaceChat from './WorkspaceChat';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowUpRight, Building2, Check, ChevronRight, Code2, ExternalLink, FolderOpen, LayoutDashboard, LockKeyhole, LogOut, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, Users, X } from 'lucide-react';
