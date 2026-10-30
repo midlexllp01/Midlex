@@ -6,6 +6,17 @@ import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'luc
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" focusable="false">
+      <path fill="#4285F4" d="M21.35 12.27c0-.71-.06-1.4-.18-2.05H12v3.88h5.24a4.48 4.48 0 0 1-1.94 2.94v2.44h3.14c1.84-1.7 2.91-4.2 2.91-7.21Z"/>
+      <path fill="#34A853" d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.44c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.52A9.75 9.75 0 0 0 12 21.75Z"/>
+      <path fill="#FBBC05" d="M6.54 13.84a5.86 5.86 0 0 1 0-3.68V7.64H3.3a9.75 9.75 0 0 0 0 8.72l3.24-2.52Z"/>
+      <path fill="#EA4335" d="M12 6.13c1.43 0 2.71.49 3.72 1.46l2.79-2.79C16.84 3.21 14.63 2.25 12 2.25a9.75 9.75 0 0 0-8.7 5.39l3.24 2.52C7.31 7.85 9.46 6.13 12 6.13Z"/>
+    </svg>
+  );
+}
+
 export default function Login() {
   const router = useRouter();
   const [error, setError] = useState('');
@@ -126,8 +137,6 @@ export default function Login() {
           <span className="eyebrow">{roleMeta.caption}</span>
           <h2>Sign in to {roleMeta.label}</h2>
           <p>{roleMeta.formSubtitle}</p>
-          <button type="button" className="secondary" onClick={() => void googleSubmit()} disabled={busy}>Continue with Google</button>
-          <div className="login-divider"><span>or use workspace password</span></div>
           <form onSubmit={submit}>
             <label>
               Work email
@@ -143,6 +152,11 @@ export default function Login() {
               <ArrowRight size={18} />
             </button>
           </form>
+          <div className="login-divider"><span>or continue with Google</span></div>
+          <button type="button" className="secondary" onClick={() => void googleSubmit()} disabled={busy} aria-label="Continue with Google">
+            <GoogleMark />
+            <span>Continue with Google</span>
+          </button>
           <div className="login-note">
             <ShieldCheck size={19} />
             <span>
