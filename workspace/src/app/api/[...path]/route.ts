@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const allowed = /^(login|google|me|logout|password|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+)$/;
+const allowed = /^(login|google|me|logout|password|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+|chat(?:\/[a-zA-Z0-9-]+){0,3})$/;
 const sessionCookie = 'midlex_workspace';
 const sessionMaxAge = 60 * 60 * 24 * 400;
 

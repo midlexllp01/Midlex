@@ -24,7 +24,11 @@ type ModelName =
   | 'property'
   | 'workspaceUser'
   | 'workspaceCode'
-  | 'workspaceAudit';
+  | 'workspaceAudit'
+  | 'workspaceConversation'
+  | 'workspaceMessage'
+  | 'workspaceBroadcast'
+  | 'workspaceBroadcastRecipient';
 
 type QueryArgs = {
   where?: any;
@@ -53,6 +57,10 @@ const COLLECTIONS: Record<ModelName, string> = {
   workspaceUser: 'workspaceUsers',
   workspaceCode: 'workspaceCodes',
   workspaceAudit: 'workspaceAudit',
+  workspaceConversation: 'workspaceConversations',
+  workspaceMessage: 'workspaceMessages',
+  workspaceBroadcast: 'workspaceBroadcasts',
+  workspaceBroadcastRecipient: 'workspaceBroadcastRecipients',
 };
 
 @Injectable()
@@ -81,6 +89,10 @@ export class PrismaService implements OnModuleInit {
   workspaceUser = this.model('workspaceUser');
   workspaceCode = this.model('workspaceCode');
   workspaceAudit = this.model('workspaceAudit');
+  workspaceConversation = this.model('workspaceConversation');
+  workspaceMessage = this.model('workspaceMessage');
+  workspaceBroadcast = this.model('workspaceBroadcast');
+  workspaceBroadcastRecipient = this.model('workspaceBroadcastRecipient');
 
   async mutateWorkspaceUser(id: string, change: (current: any) => Record<string, any>) {
     if (this.isPostgres) {

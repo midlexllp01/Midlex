@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { DirectoryModule } from './directory/directory.module';
 import { RealtyModule } from './realty/realty.module';
 import { WorkspaceModule } from './workspace/workspace.module';
+import { WorkspaceChatModule } from './workspace-chat/workspace-chat.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     DirectoryModule,
     RealtyModule,
     WorkspaceModule,
+    WorkspaceChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
