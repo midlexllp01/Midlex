@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, OnModuleInit, Serv
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type WorkspaceRole = 'DEVELOPER' | 'ADMIN' | 'STAFF';
@@ -153,6 +155,21 @@ export class WorkspaceService implements OnModuleInit {
     return { token: this.sign({ sub: user.id, kind: 'workspace', version: user.version }), user: this.safe(user) };
   }
 
+  async googleLogin(idToken: string, ip: string) {
+    if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) throw new UnauthorizedException('Invalid Google sign-in token');
+    if (!getApps().length) throw new ServiceUnavailableException('Google sign-in is not configured on the identity service');
+    let decoded: any;
+    try { decoded = await getAuth().verifyIdToken(idToken, true); } catch { throw new UnauthorizedException('Google sign-in could not be verified'); }
+    const email = typeof decoded.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+    if (!decoded.email_verified || !email || typeof decoded.uid !== 'string') throw new UnauthorizedException('Use a verified Google email address');
+    const user = await this.db.workspaceUser.findUnique({ where: { email } });
+    if (!user || !user.active) throw new UnauthorizedException('No active Midlex workspace account exists for this Google email');
+    if (user.firebaseUid && user.firebaseUid !== decoded.uid) throw new UnauthorizedException('This workspace account is linked to a different Google account');
+    const linked = await this.db.mutateWorkspaceUser(user.id, current => ({ firebaseUid: decoded.uid, mustChangePassword: false, version: current.mustChangePassword ? current.version + 1 : current.version }));
+    await this.audit(user.id, 'SIGNED_IN_GOOGLE', user.id);
+    return { token: this.sign({ sub: linked.id, kind: 'workspace', version: linked.version }), user: this.safe(linked) };
+  }
+
   developer(user: any) { if (user.role !== 'DEVELOPER') throw new ForbiddenException('Only the developer can manage identities and project access'); }
 
   async overview(user: any) {
@@ -258,7 +275,7 @@ export class WorkspaceService implements OnModuleInit {
   async launch(user: any, project: string, requested?: Access, returnUrl?: string) {
     const access = this.access(user, project, requested);
     const origin = this.projectUrl(project, access);
-    const workspaceUrl = ['https://staff.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
+    const workspaceUrl = ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(returnUrl || '') ? returnUrl : 'https://developer.midlex.xyz';
     const code = randomBytes(32).toString('base64url');
     await this.db.workspaceCode.create({
       data: {

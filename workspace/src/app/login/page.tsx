@@ -3,6 +3,8 @@ import Brand from '../../components/Brand';
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'lucide-react';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -47,6 +49,22 @@ export default function Login() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function googleSubmit() {
+    setBusy(true); setError('');
+    try {
+      const config = { apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'midlex-llp.firebaseapp.com', projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'midlex-llp', appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID };
+      if (!config.apiKey || !config.appId) throw new Error('Google sign-in is not configured for this workspace');
+      const app = getApps().length ? getApp() : initializeApp(config);
+      const result = await signInWithPopup(getAuth(app), new GoogleAuthProvider());
+      const idToken = await result.user.getIdToken();
+      const response = await fetch('/api/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Google sign-in failed');
+      router.replace(`/${data.user.role.toLowerCase()}`);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Google sign-in failed'); }
+    finally { setBusy(false); }
   }
 
   const roleMeta = {
@@ -108,6 +126,8 @@ export default function Login() {
           <span className="eyebrow">{roleMeta.caption}</span>
           <h2>Sign in to {roleMeta.label}</h2>
           <p>{roleMeta.formSubtitle}</p>
+          <button type="button" className="secondary" onClick={() => void googleSubmit()} disabled={busy}>Continue with Google</button>
+          <div className="login-divider"><span>or use workspace password</span></div>
           <form onSubmit={submit}>
             <label>
               Work email
