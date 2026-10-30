@@ -199,16 +199,18 @@ export default function Workspace({ role }: { role: string }) {
   );
   const needsPassword = data.user.mustChangePassword || passwordOpen;
   async function launch(project: Project, access: Access) {
-    const newTab = window.open("about:blank", "_blank");
-    if (!newTab) {
-      setError(
-        "Allow pop-ups for this workspace to open your project in a new tab.",
-      );
+    const appMode =
+      new URLSearchParams(window.location.search).get("midlexApp") === "1";
+    const newTab = appMode ? null : window.open("about:blank", "_blank");
+    if (!appMode && !newTab) {
+      setError("Allow pop-ups for this workspace to open your project in a new tab.");
       return;
     }
-    newTab.opener = null;
-    newTab.document.title = "Opening Midlex project";
-    newTab.document.body.textContent = "Preparing your secure project session…";
+    if (newTab) {
+      newTab.opener = null;
+      newTab.document.title = "Opening Midlex project";
+      newTab.document.body.textContent = "Preparing your secure project session…";
+    }
     setLaunching(project.id);
     setError("");
     try {
@@ -216,10 +218,11 @@ export default function Workspace({ role }: { role: string }) {
         access,
         returnUrl: window.location.origin,
       });
-      newTab.location.replace(result.url);
+      if (appMode) window.location.assign(result.url);
+      else newTab!.location.replace(result.url);
       setProfileProject(null);
     } catch (e) {
-      newTab.close();
+      newTab?.close();
       setError(e instanceof Error ? e.message : "Unable to open project");
     } finally {
       setLaunching("");

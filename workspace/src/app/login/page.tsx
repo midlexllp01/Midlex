@@ -54,7 +54,8 @@ export default function Login() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const userRole = data.user.role.toLowerCase();
-      router.replace(`/${userRole}`);
+      const appMode = new URLSearchParams(window.location.search).get('midlexApp') === '1';
+      router.replace(`/${userRole}${appMode ? '?midlexApp=1' : ''}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign in failed');
     } finally {
@@ -73,7 +74,8 @@ export default function Login() {
       const response = await fetch('/api/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Google sign-in failed');
-      router.replace(`/${data.user.role.toLowerCase()}`);
+      const appMode = new URLSearchParams(window.location.search).get('midlexApp') === '1';
+      router.replace(`/${data.user.role.toLowerCase()}${appMode ? '?midlexApp=1' : ''}`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Google sign-in failed'); }
     finally { setBusy(false); }
   }
