@@ -27,7 +27,7 @@ export class WorkspaceChatService {
   }
   async recipients(actor: WorkspaceUser) {
     const users = await this.db.workspaceUser.findMany();
-    return users.filter((user: WorkspaceUser) => user.active && user.id !== actor.id && (this.canManage(actor) || user.role === 'ADMIN' || user.role === 'DEVELOPER')).map((user: WorkspaceUser) => ({ id: user.id, name: user.name, email: user.email, role: user.role }));
+    return users.filter((user: WorkspaceUser) => user.active && user.id !== actor.id).map((user: WorkspaceUser) => ({ id: user.id, name: user.name, email: user.email, role: user.role }));
   }
   private async messages(conversationId: string) {
     const rows = await this.db.workspaceMessage.findMany({ where: { conversationId }, orderBy: { createdAt: 'asc' } });
@@ -46,6 +46,7 @@ export class WorkspaceChatService {
     const conversationItems = await Promise.all(conversations.map(async conversation => ({
       ...conversation,
       otherUser: await this.userSummary(conversation.adminId === user.id ? conversation.userId : conversation.adminId),
+      broadcast: conversation.broadcastId ? await this.db.workspaceBroadcast.findUnique({ where: { id: conversation.broadcastId } }) : null,
       messages: await this.messages(conversation.id),
     })));
     const unread = broadcastItems.filter(Boolean).filter(item => !item!.readAt).length + conversationItems.reduce((count, item) => count + item.messages.filter(message => message.senderId !== user.id && !message.readAt).length, 0);
@@ -56,11 +57,12 @@ export class WorkspaceChatService {
     const userId = this.text(body?.userId, 'Recipient');
     if (userId === actor.id) throw new BadRequestException('Choose another workspace user');
     const recipient = await this.db.workspaceUser.findUnique({ where: { id: userId } });
-    if (!recipient?.active || (!this.canManage(actor) && recipient.role !== 'ADMIN' && recipient.role !== 'DEVELOPER')) throw new NotFoundException('Active recipient not found');
-    const conversation = await this.db.workspaceConversation.create({ data: { type: 'DIRECT', adminId: this.canManage(actor) ? actor.id : recipient.id, userId: this.canManage(actor) ? userId : actor.id, broadcastId: null } });
+    if (!recipient?.active) throw new NotFoundException('Active recipient not found');
+    const existing = (await this.db.workspaceConversation.findMany({ where: { type: 'DIRECT' } })).find((row: any) => (row.adminId === actor.id && row.userId === userId) || (row.adminId === userId && row.userId === actor.id));
+    const conversation = existing || await this.db.workspaceConversation.create({ data: { type: 'DIRECT', adminId: actor.id, userId, broadcastId: null } });
     await this.sendInConversation(actor, conversation, body?.content);
-    await this.audit(actor.id, 'CHAT_STARTED', userId);
-    return { ...conversation, messages: await this.messages(conversation.id) };
+    await this.audit(actor.id, existing ? 'CHAT_MESSAGE_SENT' : 'CHAT_STARTED', conversation.id);
+    return { ...conversation, otherUser: await this.userSummary(userId), messages: await this.messages(conversation.id) };
   }
 
   async broadcast(actor: WorkspaceUser, body: any) {
