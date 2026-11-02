@@ -1,6 +1,7 @@
 "use client";
 import Brand from "./Brand";
 import WorkspaceChat from "./WorkspaceChat";
+import ChatErrorBoundary from "./ChatErrorBoundary";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -572,7 +573,7 @@ export default function Workspace({ role }: { role: string }) {
               </button>
             </div>
           )}
-          {tab === "chat" && <WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} onUnreadChange={setUnreadMessages} />}
+          {tab === "chat" && <ChatErrorBoundary><WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} onUnreadChange={setUnreadMessages} /></ChatErrorBoundary>}
           {tab === "overview" && (
             <>
               <div className="welcome-banner">

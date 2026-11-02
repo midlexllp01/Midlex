@@ -6,6 +6,43 @@ type Person = { id: string; name: string; email: string; role: string };
 type Message = { id: string; senderId: string; content: string; createdAt: string; sender?: Person };
 type Conversation = { id: string; otherUser: Person; messages: Message[] };
 type Broadcast = { id: string; recipientId: string; subject: string; content: string; createdAt: string; sender: Person; readAt?: string | null; repliedConversationId?: string | null };
+type Inbox = { unread: number; broadcasts: Broadcast[]; conversations: Conversation[] };
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function string(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function person(value: unknown): Person {
+  const item = record(value);
+  return { id: string(item.id), name: string(item.name) || string(item.email) || 'Workspace user', email: string(item.email), role: string(item.role) };
+}
+
+function message(value: unknown): Message {
+  const item = record(value);
+  return { id: string(item.id), senderId: string(item.senderId), content: string(item.content), createdAt: string(item.createdAt), sender: person(item.sender) };
+}
+
+function normalizeInbox(value: unknown): Inbox {
+  const item = record(value);
+  if (!Array.isArray(item.broadcasts) || !Array.isArray(item.conversations)) {
+    throw new Error('The workspace inbox returned an unexpected response.');
+  }
+  return {
+    unread: Math.max(0, Number(item.unread) || 0),
+    broadcasts: item.broadcasts.map((value: unknown) => {
+      const row = record(value);
+      return { id: string(row.id), recipientId: string(row.recipientId), subject: string(row.subject), content: string(row.content), createdAt: string(row.createdAt), sender: person(row.sender), readAt: string(row.readAt) || null, repliedConversationId: string(row.repliedConversationId) || null };
+    }),
+    conversations: item.conversations.map((value: unknown) => {
+      const row = record(value);
+      return { id: string(row.id), otherUser: person(row.otherUser), messages: Array.isArray(row.messages) ? row.messages.map(message) : [] };
+    }),
+  };
+}
 
 async function request(path: string, method = 'GET', body?: unknown) {
   const response = await fetch(`/api/${path}`, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -13,10 +50,19 @@ async function request(path: string, method = 'GET', body?: unknown) {
 }
 
 export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange }: { canManage: boolean; currentUserId: string; onUnreadChange?: (count: number) => void }) {
-  const [inbox, setInbox] = useState<any>({ broadcasts: [], conversations: [], unread: 0 });
+  const [inbox, setInbox] = useState<Inbox>({ broadcasts: [], conversations: [], unread: 0 });
   const [recipients, setRecipients] = useState<Person[]>([]); const [selected, setSelected] = useState(''); const [conversation, setConversation] = useState<Conversation | null>(null); const [replyBroadcastId, setReplyBroadcastId] = useState('');
   const [subject, setSubject] = useState(''); const [content, setContent] = useState(''); const [broadcast, setBroadcast] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  async function refresh() { try { const nextInbox = await request('chat/inbox'); setInbox(nextInbox); onUnreadChange?.(nextInbox.unread || 0); setRecipients(await request('chat/recipients')); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); } }
+  async function refresh() {
+    try {
+      const nextInbox = normalizeInbox(await request('chat/inbox'));
+      setInbox(nextInbox);
+      onUnreadChange?.(nextInbox.unread);
+      const people = await request('chat/recipients');
+      setRecipients(Array.isArray(people) ? people.map(person) : []);
+      setError('');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); }
+  }
   useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer); }, []);
   async function submit() {
     setBusy(true); setError('');
@@ -31,7 +77,7 @@ export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange
   return <div className="workspace-chat-panel"><section className="modal" role="region" aria-labelledby="chat-title"><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div></header>
       {error && <div className="notice error" role="alert">{error}</div>}
       {!conversation && <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
-        {inbox.broadcasts.map((item: Broadcast) => <button key={item.recipientId} type="button" className="grant-row" onClick={async () => { try { await request(`chat/broadcast-recipients/${item.recipientId}/read`, 'POST'); setSubject(`Re: ${item.subject}`); setContent(''); setSelected(''); setBroadcast(false); setReplyBroadcastId(item.repliedConversationId ? '' : item.id); const messages = item.repliedConversationId ? await request(`chat/${item.repliedConversationId}/messages`) : [{ id: item.id, senderId: item.sender.id, content: item.content, createdAt: item.createdAt, sender: item.sender }]; setConversation({ id: item.repliedConversationId || '', otherUser: item.sender, messages }); await refresh(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open message'); } }}><span><strong>{item.subject}</strong><small>{item.sender.name} · {item.content}</small></span></button>)}
+        {inbox.broadcasts.map((item: Broadcast) => <button key={item.recipientId} type="button" className="grant-row" onClick={async () => { try { await request(`chat/broadcast-recipients/${item.recipientId}/read`, 'POST'); setSubject(`Re: ${item.subject}`); setContent(''); setSelected(''); setBroadcast(false); setReplyBroadcastId(item.repliedConversationId ? '' : item.id); const messages = item.repliedConversationId ? await request(`chat/${item.repliedConversationId}/messages`) : [{ id: item.id, senderId: item.sender.id, content: item.content, createdAt: item.createdAt, sender: item.sender }]; setConversation({ id: item.repliedConversationId || '', otherUser: item.sender, messages: Array.isArray(messages) ? messages.map(message) : [] }); await refresh(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open message'); } }}><span><strong>{item.subject}</strong><small>{item.sender.name} · {item.content}</small></span></button>)}
         {inbox.conversations.map((item: Conversation) => <button key={item.id} type="button" className="grant-row" onClick={async () => { try { await request(`chat/${item.id}/read`, 'POST'); setConversation(item); setBroadcast(false); setContent(''); await refresh(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open message'); } }}><span><strong>{item.otherUser.name}</strong><small>{item.messages.at(-1)?.content || 'No messages yet'}</small></span></button>)}
         {!inbox.broadcasts.length && !inbox.conversations.length && <p className="muted">No messages yet.</p>}
       </div>}
