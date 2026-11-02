@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   ArrowUpRight,
+  Bell,
   Building2,
   Check,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   LayoutDashboard,
   LockKeyhole,
   LogOut,
+  MessageCircle,
   Pencil,
   Plus,
   Search,
@@ -95,6 +97,8 @@ export default function Workspace({ role }: { role: string }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("overview");
+  const [chatOpenSignal, setChatOpenSignal] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All projects");
   const [editor, setEditor] = useState<Person | "new" | null>(null);
@@ -389,11 +393,16 @@ export default function Workspace({ role }: { role: string }) {
             ...(developer
               ? [{ id: "activity", name: "Activity log", icon: Activity }]
               : []),
+            { id: "chat", name: "Chat", icon: MessageCircle },
           ].map((item) => (
             <button
               key={item.id}
               className={tab === item.id ? "selected" : ""}
               onClick={() => {
+                if (item.id === "chat") {
+                  setChatOpenSignal((value) => value + 1);
+                  return;
+                }
                 setTab(item.id);
                 setSearch("");
                 setCategory("All projects");
@@ -402,6 +411,7 @@ export default function Workspace({ role }: { role: string }) {
               <item.icon size={18} />
               {item.name}
               {item.id === "projects" && <span>{data.projects.length}</span>}
+              {item.id === "chat" && unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
             </button>
           ))}
         </nav>
@@ -466,7 +476,11 @@ export default function Workspace({ role }: { role: string }) {
           >
             <LockKeyhole size={14} /> Change password
           </button>
-          <WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} />
+          <button className="secondary compact notification-button" type="button" title="Notifications" aria-label={unreadMessages > 0 ? `${unreadMessages} unread messages` : "Open notifications"} onClick={() => setChatOpenSignal((value) => value + 1)}>
+            <Bell size={16} />
+            {unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
+          </button>
+          <WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} openSignal={chatOpenSignal} onUnreadChange={setUnreadMessages} />
           <div className="mobile-account">
             <button
               aria-label="Change password"

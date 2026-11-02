@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Bell, MessageCircle, Send, X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 
 type Person = { id: string; name: string; email: string; role: string };
 type Message = { id: string; senderId: string; content: string; createdAt: string; sender?: Person };
@@ -12,12 +12,13 @@ async function request(path: string, method = 'GET', body?: unknown) {
   const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Chat request failed'); return data;
 }
 
-export default function WorkspaceChat({ canManage, currentUserId, autoOpen = false }: { canManage: boolean; currentUserId: string; autoOpen?: boolean }) {
+export default function WorkspaceChat({ canManage, currentUserId, autoOpen = false, openSignal = 0, onUnreadChange }: { canManage: boolean; currentUserId: string; autoOpen?: boolean; openSignal?: number; onUnreadChange?: (count: number) => void }) {
   const [open, setOpen] = useState(false); const [inbox, setInbox] = useState<any>({ broadcasts: [], conversations: [], unread: 0 });
   const [recipients, setRecipients] = useState<Person[]>([]); const [selected, setSelected] = useState(''); const [conversation, setConversation] = useState<Conversation | null>(null); const [replyBroadcastId, setReplyBroadcastId] = useState('');
   const [subject, setSubject] = useState(''); const [content, setContent] = useState(''); const [broadcast, setBroadcast] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  async function refresh() { try { setInbox(await request('chat/inbox')); setRecipients(await request('chat/recipients')); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); } }
+  async function refresh() { try { const nextInbox = await request('chat/inbox'); setInbox(nextInbox); onUnreadChange?.(nextInbox.unread || 0); setRecipients(await request('chat/recipients')); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); } }
   useEffect(() => { if (autoOpen) setOpen(true); void refresh(); const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer); }, [canManage, autoOpen]);
+  useEffect(() => { if (openSignal > 0) { setOpen(true); setError(''); void refresh(); } }, [openSignal]);
   async function submit() {
     setBusy(true); setError('');
     try {
@@ -28,11 +29,7 @@ export default function WorkspaceChat({ canManage, currentUserId, autoOpen = fal
       setSubject(''); setContent(''); setSelected(''); setConversation(null); setReplyBroadcastId(''); await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to send message'); } finally { setBusy(false); }
   }
-  const unread = inbox.unread || 0;
-  const openInbox = () => { setOpen(true); setError(''); void refresh(); };
   return <>
-    <button type="button" className="secondary compact" onClick={openInbox} aria-label={unread > 0 ? `${unread} unread notifications` : 'Open notifications'} title="Notifications" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Bell size={16}/>{unread > 0 && <span aria-hidden="true" style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#dc2626', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{unread > 99 ? '99+' : unread}</span>}</button>
-    <button type="button" className="secondary compact" onClick={openInbox} aria-label={unread > 0 ? `${unread} unread messages` : 'Open messages'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><MessageCircle size={15}/> Messages{unread > 0 && <span aria-hidden="true" style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#dc2626', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{unread > 99 ? '99+' : unread}</span>}</button>
     {open && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="chat-title" style={{ maxWidth: 720 }}><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div><button aria-label="Close messages" onClick={() => setOpen(false)}><X size={20}/></button></header>
       {error && <div className="notice error" role="alert">{error}</div>}
       {!conversation && <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
