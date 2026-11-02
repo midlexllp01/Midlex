@@ -1171,6 +1171,13 @@ td small {
   box-shadow: 0 30px 80px #071c2450;
 }
 
+.workspace-chat-panel .modal {
+  width: 100%;
+  max-height: none;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
 .modal > header {
   display: flex;
   justify-content: space-between;

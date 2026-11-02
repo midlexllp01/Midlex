@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Send, X } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 type Person = { id: string; name: string; email: string; role: string };
 type Message = { id: string; senderId: string; content: string; createdAt: string; sender?: Person };
@@ -12,13 +12,12 @@ async function request(path: string, method = 'GET', body?: unknown) {
   const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Chat request failed'); return data;
 }
 
-export default function WorkspaceChat({ canManage, currentUserId, autoOpen = false, openSignal = 0, onUnreadChange }: { canManage: boolean; currentUserId: string; autoOpen?: boolean; openSignal?: number; onUnreadChange?: (count: number) => void }) {
-  const [open, setOpen] = useState(false); const [inbox, setInbox] = useState<any>({ broadcasts: [], conversations: [], unread: 0 });
+export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange }: { canManage: boolean; currentUserId: string; onUnreadChange?: (count: number) => void }) {
+  const [inbox, setInbox] = useState<any>({ broadcasts: [], conversations: [], unread: 0 });
   const [recipients, setRecipients] = useState<Person[]>([]); const [selected, setSelected] = useState(''); const [conversation, setConversation] = useState<Conversation | null>(null); const [replyBroadcastId, setReplyBroadcastId] = useState('');
   const [subject, setSubject] = useState(''); const [content, setContent] = useState(''); const [broadcast, setBroadcast] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   async function refresh() { try { const nextInbox = await request('chat/inbox'); setInbox(nextInbox); onUnreadChange?.(nextInbox.unread || 0); setRecipients(await request('chat/recipients')); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); } }
-  useEffect(() => { if (autoOpen) setOpen(true); void refresh(); const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer); }, [canManage, autoOpen]);
-  useEffect(() => { if (openSignal > 0) { setOpen(true); setError(''); void refresh(); } }, [openSignal]);
+  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer); }, []);
   async function submit() {
     setBusy(true); setError('');
     try {
@@ -29,8 +28,7 @@ export default function WorkspaceChat({ canManage, currentUserId, autoOpen = fal
       setSubject(''); setContent(''); setSelected(''); setConversation(null); setReplyBroadcastId(''); await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to send message'); } finally { setBusy(false); }
   }
-  return <>
-    {open && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="chat-title" style={{ maxWidth: 720 }}><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div><button aria-label="Close messages" onClick={() => setOpen(false)}><X size={20}/></button></header>
+  return <div className="workspace-chat-panel"><section className="modal" role="region" aria-labelledby="chat-title"><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div></header>
       {error && <div className="notice error" role="alert">{error}</div>}
       {!conversation && <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
         {inbox.broadcasts.map((item: Broadcast) => <button key={item.recipientId} type="button" className="grant-row" onClick={async () => { try { await request(`chat/broadcast-recipients/${item.recipientId}/read`, 'POST'); setSubject(`Re: ${item.subject}`); setContent(''); setSelected(''); setBroadcast(false); setReplyBroadcastId(item.repliedConversationId ? '' : item.id); const messages = item.repliedConversationId ? await request(`chat/${item.repliedConversationId}/messages`) : [{ id: item.id, senderId: item.sender.id, content: item.content, createdAt: item.createdAt, sender: item.sender }]; setConversation({ id: item.repliedConversationId || '', otherUser: item.sender, messages }); await refresh(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to open message'); } }}><span><strong>{item.subject}</strong><small>{item.sender.name} · {item.content}</small></span></button>)}
@@ -43,6 +41,5 @@ export default function WorkspaceChat({ canManage, currentUserId, autoOpen = fal
         {conversation && <><div style={{ display: 'flex', justifyContent: 'space-between' }}><strong>{conversation.otherUser.name}</strong><button type="button" className="text-button" onClick={() => { setConversation(null); setReplyBroadcastId(''); }}>Back</button></div><div style={{ maxHeight: 200, overflowY: 'auto' }}>{conversation.messages.map(message => <p key={message.id}><strong>{message.sender?.name || (message.senderId === currentUserId ? 'You' : 'User')}:</strong> {message.content}</p>)}</div></>}
         <textarea value={content} onChange={e => setContent(e.target.value)} maxLength={4000} required placeholder={broadcast ? 'Broadcast message' : 'Write a message…'} rows={3}/><button type="button" className="primary compact" disabled={busy || !content.trim() || (!conversation && !selected)} onClick={() => void submit()}>{busy ? 'Sending…' : 'Send'}<Send size={15}/></button>
       </div>
-    </section></div>}
-  </>;
+    </section></div>;
 }

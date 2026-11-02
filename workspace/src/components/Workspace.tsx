@@ -97,11 +97,10 @@ export default function Workspace({ role }: { role: string }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("overview");
-  const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('chat') === '1') {
-      setChatOpenSignal((value) => value + 1);
+      setTab('chat');
       window.history.replaceState(window.history.state, '', window.location.pathname);
     }
   }, []);
@@ -146,6 +145,18 @@ export default function Workspace({ role }: { role: string }) {
       window.clearInterval(timer);
     };
   }, [load]);
+  useEffect(() => {
+    if (!data?.user.id) return;
+    const refreshUnread = async () => {
+      try {
+        const inbox = await api('chat/inbox');
+        setUnreadMessages(Number(inbox.unread) || 0);
+      } catch { /* Chat can report its own error when opened. */ }
+    };
+    void refreshUnread();
+    const timer = window.setInterval(refreshUnread, 30000);
+    return () => window.clearInterval(timer);
+  }, [data?.user.id]);
   if (!data)
     return (
       <main className="loading">
@@ -405,10 +416,6 @@ export default function Workspace({ role }: { role: string }) {
               key={item.id}
               className={tab === item.id ? "selected" : ""}
               onClick={() => {
-                if (item.id === "chat") {
-                  setChatOpenSignal((value) => value + 1);
-                  return;
-                }
                 setTab(item.id);
                 setSearch("");
                 setCategory("All projects");
@@ -455,6 +462,8 @@ export default function Workspace({ role }: { role: string }) {
                 ? "People & access"
                 : tab === "activity"
                   ? "Activity log"
+                  : tab === "chat"
+                    ? "Chat"
                   : tab === "projects"
                     ? "My projects"
                     : "Overview"}
@@ -482,11 +491,10 @@ export default function Workspace({ role }: { role: string }) {
           >
             <LockKeyhole size={14} /> Change password
           </button>
-          <button className="secondary compact notification-button" type="button" title="Notifications" aria-label={unreadMessages > 0 ? `${unreadMessages} unread messages` : "Open notifications"} onClick={() => setChatOpenSignal((value) => value + 1)}>
+          <button className="secondary compact notification-button" type="button" title="Notifications" aria-label={unreadMessages > 0 ? `${unreadMessages} unread messages` : "Open notifications"} onClick={() => setTab('chat')}>
             <Bell size={16} />
             {unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
           </button>
-          <WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} openSignal={chatOpenSignal} onUnreadChange={setUnreadMessages} />
           <div className="mobile-account">
             <button
               aria-label="Change password"
@@ -519,6 +527,8 @@ export default function Workspace({ role }: { role: string }) {
                     ? "The right access. For every person."
                     : tab === "activity"
                       ? "A record of what matters."
+                  : tab === "chat"
+                    ? "Workspace chat"
                       : details.title}
               </h1>
               <p>
@@ -526,6 +536,8 @@ export default function Workspace({ role }: { role: string }) {
                   ? "Onboard your team and set permissions for each project independently."
                   : tab === "activity"
                     ? "Sign-ins, onboarding and permission changes across your workspace."
+                  : tab === "chat"
+                    ? "Private messages and broadcasts in one inbox."
                     : details.subtitle}
               </p>
             </div>
@@ -560,6 +572,7 @@ export default function Workspace({ role }: { role: string }) {
               </button>
             </div>
           )}
+          {tab === "chat" && <WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} onUnreadChange={setUnreadMessages} />}
           {tab === "overview" && (
             <>
               <div className="welcome-banner">
