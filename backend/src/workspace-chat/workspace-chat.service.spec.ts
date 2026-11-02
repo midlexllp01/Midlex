@@ -21,8 +21,15 @@ function fixture() {
       findMany: jest.fn(async () => [] as any[]),
       create: jest.fn(async ({ data }: any) => ({ id: 'message-1', ...data })),
     },
-    workspaceBroadcast: { create: jest.fn(async ({ data }: any) => ({ id: 'broadcast-1', ...data })) },
-    workspaceBroadcastRecipient: { create: jest.fn(async () => ({})) },
+    workspaceBroadcast: {
+      create: jest.fn(async ({ data }: any) => ({ id: 'broadcast-1', ...data })),
+      findUnique: jest.fn(async () => ({ id: 'broadcast-1', senderId: 'dev' })),
+    },
+    workspaceBroadcastRecipient: {
+      create: jest.fn(async () => ({})),
+      findMany: jest.fn(async ({ where }: any) => [{ id: `receipt-${where.userId}`, broadcastId: 'broadcast-1', userId: where.userId, repliedConversationId: null }]),
+      update: jest.fn(async () => ({})),
+    },
     workspaceAudit: { create: jest.fn(async () => ({})) },
   };
   return { db, chat: new WorkspaceChatService(db as any, {} as any) };
@@ -62,5 +69,17 @@ describe('WorkspaceChatService direct messaging', () => {
     await expect(chat.broadcast(alice, { subject: 'Update', content: 'Hello everyone' })).rejects.toThrow('Only Admin or Developer');
     await chat.broadcast(developer, { subject: 'Update', content: 'Hello everyone' });
     expect(db.workspaceBroadcastRecipient.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes a separate private reply conversation for each broadcast recipient', async () => {
+    const { chat, db } = fixture();
+    db.workspaceConversation.create.mockImplementation(async ({ data }: any) => ({ id: `reply-${data.userId}`, ...data }));
+    db.workspaceConversation.findUnique.mockImplementation(async ({ where }: any) => ({ id: where.id, adminId: 'dev', userId: where.id.replace('reply-', '') }));
+    await chat.replyToBroadcast(alice, 'broadcast-1', { content: 'Alice reply' });
+    await chat.replyToBroadcast(bob, 'broadcast-1', { content: 'Bob reply' });
+    expect(db.workspaceConversation.create).toHaveBeenNthCalledWith(1, { data: { type: 'BROADCAST_REPLY', broadcastId: 'broadcast-1', adminId: 'dev', userId: 'alice' } });
+    expect(db.workspaceConversation.create).toHaveBeenNthCalledWith(2, { data: { type: 'BROADCAST_REPLY', broadcastId: 'broadcast-1', adminId: 'dev', userId: 'bob' } });
+    expect(db.workspaceMessage.create).toHaveBeenNthCalledWith(1, { data: { conversationId: 'reply-alice', senderId: 'alice', content: 'Alice reply', readAt: null } });
+    expect(db.workspaceMessage.create).toHaveBeenNthCalledWith(2, { data: { conversationId: 'reply-bob', senderId: 'bob', content: 'Bob reply', readAt: null } });
   });
 });
