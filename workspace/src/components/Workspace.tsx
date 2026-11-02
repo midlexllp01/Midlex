@@ -102,7 +102,7 @@ export default function Workspace({ role }: { role: string }) {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('chat') === '1') {
       setChatOpenSignal((value) => value + 1);
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.replaceState(window.history.state, '', window.location.pathname);
     }
   }, []);
   const [search, setSearch] = useState("");
