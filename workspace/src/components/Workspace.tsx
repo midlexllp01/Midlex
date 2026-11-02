@@ -99,6 +99,12 @@ export default function Workspace({ role }: { role: string }) {
   const [tab, setTab] = useState("overview");
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('chat') === '1') {
+      setChatOpenSignal((value) => value + 1);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All projects");
   const [editor, setEditor] = useState<Person | "new" | null>(null);
