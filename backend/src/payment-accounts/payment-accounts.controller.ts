@@ -24,7 +24,7 @@ export class PaymentAccountsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, 'ACCOUNTANT' as Role)
   async create(@Body() body: any) {
     return this.accounts.create({
       label: body.label,
@@ -37,7 +37,7 @@ export class PaymentAccountsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, 'ACCOUNTANT' as Role)
   async update(@Param('id') id: string, @Body() body: any) {
     return this.accounts.update(id, {
       label: body.label,

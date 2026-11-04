@@ -1,3 +1,4 @@
+import { MonnifyService } from './monnify.service';
 import {
   BadRequestException,
   Body,
@@ -23,7 +24,28 @@ import { PaymentsService } from './payments.service';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService, private readonly monnify: MonnifyService) {}
+
+  @Get('providers')
+  @UseGuards(JwtAuthGuard)
+  providers() {
+    return { opay: { configured: ['OPAY_PUBLIC_KEY', 'OPAY_PRIVATE_KEY', 'OPAY_MERCHANT_ID'].every(key => !!process.env[key]?.trim()), mode: process.env.OPAY_SANDBOX === 'false' ? 'live' : 'sandbox' }, moniepoint: this.monnify.readiness() };
+  }
+
+  @Post('monnify/webhook')
+  monnifyWebhook(@Request() req: any, @Headers('monnify-signature') signature: string, @Body() body: any) {
+    return this.monnify.webhook(req.rawBody, signature, body);
+  }
+
+  @Post(':id/monnify-checkout')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CLIENT)
+  monnifyCheckout(@Param('id') id: string, @Request() req: any) { return this.monnify.checkout(id, req.user.id); }
+
+  @Post(':id/monnify-sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CLIENT, Role.ADMIN, 'ACCOUNTANT' as Role)
+  monnifySync(@Param('id') id: string, @Request() req: any) { return this.monnify.sync(id, req.user); }
 
   @Post('initiate')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,7 +81,7 @@ export class PaymentsController {
 
   @Post('request')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.LAWYER, ((Role as any).ACCOUNTANT || 'ACCOUNTANT') as any)
+  @Roles(Role.ADMIN, Role.LAWYER)
   createRequest(@Body() body: any, @Request() req: any) {
     return this.paymentsService.createPaymentRequest({
       amount: body.amount,

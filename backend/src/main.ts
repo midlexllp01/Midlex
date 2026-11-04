@@ -6,7 +6,7 @@ import { join } from 'path';
 import { mountSubsystems } from './subsystems/index.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     'https://midlex-backend.onrender.com',

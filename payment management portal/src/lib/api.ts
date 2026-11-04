@@ -1,5 +1,6 @@
 function resolveApiUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (typeof window !== 'undefined' && localStorage.getItem('midlex_workspace_return') && localStorage.getItem('midlex_token')) return 'https://midlex-project-backend.onrender.com';
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
@@ -45,7 +46,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
       return apiFetch<T>(endpoint, options, retries - 1);
     }
 
-    const fallbackUrl = (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
+    const fallbackUrl = API_URL === 'https://midlex-project-backend.onrender.com' ? API_URL : (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
     if (API_URL !== fallbackUrl) {
       try {
         API_URL = fallbackUrl;

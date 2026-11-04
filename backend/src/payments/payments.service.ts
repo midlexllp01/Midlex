@@ -639,7 +639,7 @@ export class PaymentsService {
   }
 
   async findAllForUser(params: { userId: string; role: Role }) {
-    if (params.role === Role.ADMIN) {
+    if (params.role === Role.ADMIN || String(params.role) === 'ACCOUNTANT') {
       return this.prisma.payment.findMany({
         orderBy: { createdAt: 'desc' },
         include: { case: true, client: true, account: true },
@@ -750,6 +750,7 @@ export class PaymentsService {
     });
     if (!payment) throw new NotFoundException('Payment not found');
     if (!payment.proofUrl) throw new BadRequestException('No proof uploaded');
+    if (payment.status !== PaymentStatus.PENDING) throw new BadRequestException('Payment has already been reviewed');
 
     return this.prisma.payment.update({
       where: { id: params.paymentId },
