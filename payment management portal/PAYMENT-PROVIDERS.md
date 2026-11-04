@@ -1,9 +1,9 @@
 # OPay and Moniepoint rollout
 
-Admin creates invoices in Legal Admin. Accountants monitor all invoices in this portal, review receipts, maintain receiving accounts, and check gateway status. Accountant invoice creation is disabled.
+Only admins create invoices in Legal Admin or the Finance Portal. Lawyers and clients cannot create invoices or set amounts. Accountants monitor all invoices, review receipts, maintain receiving accounts, and check gateway status. Accountant invoice creation is disabled.
 
 ## Bank transfers
-Add your real OPay or Moniepoint business account under Receiving accounts. Clients see the receiving accounts on their payment page and upload proof against an invoice. Confirm receipt against the actual bank statement before approving. A submitted receipt alone is not proof of settlement.
+Add your real OPay or Moniepoint business account under Receiving accounts. The admin selects the exact same-currency account on each invoice when bank transfer is allowed. Clients see only the account assigned to that invoice, then upload proof. Invoices without an assigned account offer online checkout only. Confirm receipt against the actual bank statement before approving. A submitted receipt alone is not proof of settlement.
 
 ## Checkout activation (server environment only)
 OPay: OPAY_PUBLIC_KEY, OPAY_PRIVATE_KEY, OPAY_MERCHANT_ID. Keep OPAY_SANDBOX=true for tests; use false only with approved live credentials. Existing callback: /payments/opay/webhook.

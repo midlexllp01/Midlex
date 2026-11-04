@@ -1,5 +1,6 @@
 import { MonnifyService } from './monnify.service';
 import { PaymentsService } from './payments.service';
+import { Role } from '@prisma/client';
 
 describe('Finance payment verification', () => {
   const payment = { id: 'invoice', clientId: 'client', amount: 4000, currency: 'NGN', status: 'PENDING', gatewayReference: 'expected' };
@@ -42,5 +43,18 @@ describe('Finance payment verification', () => {
     const payments = new PaymentsService({} as any, db, {} as any, {} as any);
     await payments.findAllForUser({ userId: 'accountant', role: 'ACCOUNTANT' as any });
     expect(db.payment.findMany).toHaveBeenCalledWith(expect.not.objectContaining({ where: expect.anything() }));
+  });
+  it('refuses invoice creation by a lawyer before writing a payment', async () => {
+    const payments = new PaymentsService({} as any, db, {} as any, {} as any);
+    await expect(payments.createPaymentRequest({ amount: 4000, currency: 'NGN', caseId: 'case', clientId: 'client', createdBy: { id: 'lawyer', role: Role.LAWYER } })).rejects.toThrow('Only admins');
+    expect(db.payment.create).toBeUndefined();
+  });
+  it('rejects an invoice whose selected receiving account uses another currency', async () => {
+    db.case = { findUnique: jest.fn().mockResolvedValue({ id: 'case', clientId: 'client' }) };
+    db.paymentAccount = { findUnique: jest.fn().mockResolvedValue({ id: 'opay', isActive: true, currency: 'USD' }) };
+    db.payment.create = jest.fn();
+    const payments = new PaymentsService({} as any, db, {} as any, {} as any);
+    await expect(payments.createPaymentRequest({ amount: 4000, currency: 'NGN', caseId: 'case', clientId: 'client', accountId: 'opay', createdBy: { id: 'admin', role: Role.ADMIN } })).rejects.toThrow('currency must match');
+    expect(db.payment.create).not.toHaveBeenCalled();
   });
 });

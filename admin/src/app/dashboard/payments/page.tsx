@@ -108,13 +108,12 @@ export default function PaymentsPage() {
 
   const loadCasesForRequest = async () => {
     if (!user) return;
-    if (!(user.role === 'ADMIN' || user.role === 'LAWYER')) return;
+    if (user.role !== 'ADMIN') return;
 
     setIsCasesLoading(true);
     setCasesError(null);
     try {
-      const endpoint = user.role === 'ADMIN' ? '/cases' : '/cases/my-cases';
-      const list = await apiFetch(endpoint);
+      const list = await apiFetch('/cases');
       setCases(Array.isArray(list) ? list : []);
     } catch (e: any) {
       setCases([]);
@@ -236,6 +235,7 @@ export default function PaymentsPage() {
 
   const createPaymentRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== 'ADMIN') return;
     const c = cases.find((x) => x.id === requestForm.caseId);
     if (!c) return alert('Select a case');
     try {
@@ -663,7 +663,7 @@ export default function PaymentsPage() {
   const renderCheckoutProofActions = (p: Payment) => {
     const isClientPending = user?.role === 'CLIENT' && p.status === 'PENDING';
     const method = selectedMethodByPayment[p.id] || 'opay';
-    const mainAccount = p.account || accounts[0];
+    const mainAccount = p.account?.currency === p.currency ? p.account : null;
 
     return (
       <div className="space-y-4">
@@ -844,7 +844,7 @@ export default function PaymentsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold text-primary">Financial History</h2>
         <div className="flex gap-3">
-          {(user?.role === 'ADMIN' || user?.role === 'LAWYER') && (
+          {user?.role === 'ADMIN' && (
             <button
               onClick={() => setIsRequestModalOpen(true)}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-white shadow-xl shadow-primary/20 transition-all hover:bg-primary/90 sm:w-auto sm:px-8"
@@ -911,7 +911,7 @@ export default function PaymentsPage() {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Amount</p>
                 <p className="mt-1 break-words font-bold text-primary">{p.currency} {p.amount.toLocaleString()}</p>
               </div>
-              {(user?.role === 'ADMIN' || user?.role === 'LAWYER') && (
+              {user?.role === 'ADMIN' && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Client</p>
                   <p className="mt-1 break-words text-sm font-bold text-primary">{p.client?.name || 'N/A'}</p>
@@ -1034,7 +1034,7 @@ export default function PaymentsPage() {
       </div>
 
       <AnimatePresence>
-        {isRequestModalOpen && (
+        {isRequestModalOpen && user?.role === 'ADMIN' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
@@ -1085,13 +1085,27 @@ export default function PaymentsPage() {
                     <label className="block text-sm font-bold text-primary mb-2">Currency</label>
                     <select
                       value={requestForm.currency}
-                      onChange={(e) => setRequestForm({ ...requestForm, currency: e.target.value })}
+                      onChange={(e) => setRequestForm({ ...requestForm, currency: e.target.value, accountId: '' })}
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-primary"
                     >
                       <option value="NGN">NGN</option>
                       <option value="USD">USD</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-primary mb-2">Receiving account for bank transfer</label>
+                  <select
+                    value={requestForm.accountId}
+                    onChange={(e) => setRequestForm({ ...requestForm, accountId: e.target.value })}
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-primary"
+                  >
+                    <option value="">Online checkout only</option>
+                    {accounts.filter((account) => account.currency === requestForm.currency).map((account) => (
+                      <option key={account.id} value={account.id}>{account.bankName} — {account.accountNumber} ({account.accountName})</option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-gray-500">Choose the exact OPay, Moniepoint or bank account for this invoice. Leave blank if the client should pay online.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-primary mb-2">Description (optional)</label>

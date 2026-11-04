@@ -164,6 +164,7 @@ export default function PaymentManagementDashboard() {
   // Action: Create Payment Request
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== 'ADMIN') return;
     setRequestError("");
     setIsSubmittingRequest(true);
 
@@ -666,7 +667,7 @@ export default function PaymentManagementDashboard() {
 
       {/* MODAL: Generate Payment Request / Invoice */}
       <AnimatePresence>
-        {isRequestModalOpen && (
+        {isRequestModalOpen && user?.role === 'ADMIN' && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -739,7 +740,7 @@ export default function PaymentManagementDashboard() {
                     </label>
                     <select
                       value={requestForm.currency}
-                      onChange={(e) => setRequestForm({ ...requestForm, currency: e.target.value })}
+                      onChange={(e) => setRequestForm({ ...requestForm, currency: e.target.value, accountId: '' })}
                       className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-xs sm:text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-600"
                     >
                       <option value="NGN">NGN (₦)</option>
@@ -758,13 +759,14 @@ export default function PaymentManagementDashboard() {
                     onChange={(e) => setRequestForm({ ...requestForm, accountId: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-600"
                   >
-                    <option value="">Default Firm Account</option>
-                    {accounts.map((a) => (
+                    <option value="">Online checkout only</option>
+                    {accounts.filter((a) => a.currency === requestForm.currency).map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.bankName} - {a.accountNumber} ({a.accountName})
                       </option>
                     ))}
                   </select>
+                  <p className="mt-2 text-xs text-slate-500">Select the exact receiving account if this invoice allows a bank transfer.</p>
                 </div>
 
                 <div>

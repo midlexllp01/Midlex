@@ -47,23 +47,6 @@ export class PaymentsController {
   @Roles(Role.CLIENT, Role.ADMIN, 'ACCOUNTANT' as Role)
   monnifySync(@Param('id') id: string, @Request() req: any) { return this.monnify.sync(id, req.user); }
 
-  @Post('initiate')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  initiate(@Body() body: any, @Request() req: any) {
-    const baseUrl =
-      process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
-    return this.paymentsService.initiatePayment({
-      amount: body.amount,
-      currency: body.currency || 'NGN',
-      email: req.user.email,
-      name: req.user.name,
-      phone: req.user.phone,
-      caseId: body.caseId,
-      clientId: req.user.id,
-      backendBaseUrl: baseUrl,
-    });
-  }
-
   @Get('verify')
   @UseGuards(JwtAuthGuard, RolesGuard)
   verify(
@@ -81,7 +64,7 @@ export class PaymentsController {
 
   @Post('request')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.LAWYER)
+  @Roles(Role.ADMIN)
   createRequest(@Body() body: any, @Request() req: any) {
     return this.paymentsService.createPaymentRequest({
       amount: body.amount,
