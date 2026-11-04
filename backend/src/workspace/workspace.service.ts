@@ -185,6 +185,22 @@ export class WorkspaceService implements OnModuleInit {
     return { user: this.safe(user), projects, ...(user.role === 'DEVELOPER' ? { users: (await this.db.workspaceUser.findMany()).map(u => this.safe(u)), audit: await this.db.workspaceAudit.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }) } : {}) };
   }
 
+  async projectUserCount(project: string, secret: string) {
+    this.validateProjectSecret(project, secret);
+    const users = await this.db.workspaceUser.findMany();
+    const total = users.filter(user => user.active && user.role !== 'DEVELOPER' && Boolean(user.grants?.[project])).length;
+    return { project, total };
+  }
+
+  private validateProjectSecret(project: string, secret: string) {
+    if (!PROJECTS.some(item => item.id === project)) throw new BadRequestException('Unknown project');
+    const expected = process.env[`WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}_SECRET`];
+    // Hash before comparing so different credential lengths are still compared in constant time.
+    if (!expected || !secret || !timingSafeEqual(createHash('sha256').update(expected).digest(), createHash('sha256').update(secret).digest())) {
+      throw new UnauthorizedException('Invalid project credentials');
+    }
+  }
+
   private validateGrants(grants: any) {
     if (!grants || typeof grants !== 'object' || Array.isArray(grants)) throw new BadRequestException('Invalid project permissions');
     for (const [id, access] of Object.entries(grants)) {
@@ -312,9 +328,8 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   async redeem(project: string, code: string, secret: string) {
-    const expected = process.env[`WORKSPACE_PROJECT_${(project || '').replace(/-/g, '_').toUpperCase()}_SECRET`];
-    // Hash before comparing so credentials of different lengths are also compared in constant time.
-    if (!expected || !secret || !timingSafeEqual(createHash('sha256').update(expected).digest(), createHash('sha256').update(secret).digest())) throw new UnauthorizedException('Invalid project credentials');
+    if (!project) throw new BadRequestException('Project is required');
+    this.validateProjectSecret(project, secret);
     if (typeof code !== 'string' || code.length > 128) throw new BadRequestException('Invalid handoff');
     const id = createHash('sha256').update(code).digest('hex');
     const pending = await this.db.workspaceCode.findUnique({ where: { id } });

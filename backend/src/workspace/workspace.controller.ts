@@ -16,5 +16,6 @@ export class WorkspaceController {
   @Post('project-logout') logoutProject(@Headers('authorization') auth: string) { return this.service.logoutProject(this.bearer(auth)); }
   @Post('launch/:project') async launch(@Headers('authorization') auth: string, @Param('project') project: string, @Body() body: any) { return this.service.launch(await this.service.session(this.bearer(auth)), project, body?.access, body?.returnUrl); }
   @Post('redeem') redeem(@Headers('x-project-secret') secret: string, @Body() body: any) { return this.service.redeem(body.project, body.code, secret); }
+  @Get('project-count/:project') projectCount(@Headers('x-project-secret') secret: string, @Param('project') project: string) { return this.service.projectUserCount(project, secret); }
   @Post('introspect') inspect(@Headers('authorization') auth: string, @Body() body: any) { return this.service.inspect(this.bearer(auth), body.project); }
 }
