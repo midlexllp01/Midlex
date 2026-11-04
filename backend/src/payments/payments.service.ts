@@ -272,57 +272,6 @@ export class PaymentsService {
     });
   }
 
-  async initiatePayment(data: {
-    amount: number;
-    currency: string;
-    email: string;
-    name: string;
-    caseId: string;
-    clientId: string;
-    phone?: string;
-    backendBaseUrl?: string;
-  }) {
-    if (!data.amount || data.amount <= 0) {
-      throw new BadRequestException('Invalid amount');
-    }
-
-    const caseRecord = await this.prisma.case.findUnique({
-      where: { id: data.caseId },
-      select: { id: true, clientId: true, title: true },
-    });
-
-    if (!caseRecord) throw new NotFoundException('Case not found');
-    if (caseRecord.clientId !== data.clientId) {
-      throw new ForbiddenException('This case does not belong to you');
-    }
-
-    const txRef = `MIDLEX-OPAY-${Date.now()}`;
-    const payment = await this.prisma.payment.create({
-      data: {
-        amount: data.amount,
-        currency: data.currency || 'NGN',
-        txRef,
-        caseId: data.caseId,
-        clientId: data.clientId,
-        status: PaymentStatus.PENDING,
-        paymentProvider: 'OPAY',
-        description: 'OPay checkout',
-      },
-      include: { case: true, client: true, account: true },
-    });
-
-    return this.createOpayCheckoutForPayment({
-      paymentId: payment.id,
-      clientId: data.clientId,
-      backendBaseUrl: data.backendBaseUrl,
-      customer: {
-        email: data.email,
-        name: data.name,
-        phone: data.phone,
-      },
-    });
-  }
-
   async createPaymentRequest(data: {
     amount: number;
     currency: string;
@@ -333,7 +282,10 @@ export class PaymentsService {
     dueDate?: Date;
     createdBy: { id: string; role: Role };
   }) {
-    if (!data.amount || data.amount <= 0) {
+    if (data.createdBy.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admins can create payment requests');
+    }
+    if (!Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0) {
       throw new BadRequestException('Invalid amount');
     }
     if (!data.caseId || !data.clientId) {
@@ -349,22 +301,16 @@ export class PaymentsService {
       throw new BadRequestException('Client does not match case');
     }
 
-    if (
-      data.createdBy.role === Role.LAWYER &&
-      caseRecord.lawyerId !== data.createdBy.id
-    ) {
-      throw new ForbiddenException(
-        'You can only create payment requests for your assigned cases',
-      );
-    }
-
     if (data.accountId) {
       const account = await this.prisma.paymentAccount.findUnique({
         where: { id: data.accountId },
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, currency: true },
       });
       if (!account || !account.isActive) {
         throw new BadRequestException('Invalid payment account');
+      }
+      if (account.currency !== data.currency) {
+        throw new BadRequestException('Receiving account currency must match the invoice');
       }
     }
 
