@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (newToken: string, newUser: User) => {
+    localStorage.removeItem('midlex_workspace_return');
     localStorage.setItem('midlex_token', newToken);
     localStorage.setItem('midlex_user', JSON.stringify(newUser));
     setToken(newToken);

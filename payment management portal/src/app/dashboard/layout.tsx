@@ -43,7 +43,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#f3f6f1] flex flex-col">
       {/* Top Navigation Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,10 +56,10 @@ export default function DashboardLayout({
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-slate-950 text-base sm:text-lg tracking-tight">MIDLEX LLP</span>
                     <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-300">
-                      Finance & Payments
+                      Accountant portal
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 font-medium">Accounting, Invoicing & Financial Operations</p>
+                  <p className="text-xs text-slate-600 font-medium">Payment monitoring & reconciliation</p>
                 </div>
               </Link>
             </div>
@@ -98,7 +98,7 @@ export default function DashboardLayout({
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>&copy; {new Date().getFullYear()} Midlex LLP. Financial Management & Client Accounting Operations.</span>
-          <span className="text-emerald-700 font-semibold">Connected to Render Backend (https://midlex-new.onrender.com)</span>
+          <span className="text-emerald-700 font-semibold">Midlex Finance · Secure workspace</span>
         </div>
       </footer>
     </div>

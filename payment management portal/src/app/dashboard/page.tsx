@@ -30,6 +30,8 @@ import {
 interface Payment {
   id: string;
   amount: number;
+  paymentProvider?: string;
+  gatewayReference?: string;
   currency: string;
   status: string;
   txRef: string;
@@ -86,6 +88,9 @@ interface CaseItem {
 
 export default function PaymentManagementDashboard() {
   const { user } = useAuth();
+  const [loadError, setLoadError] = useState('');
+  const [providers, setProviders] = useState<Record<string, { configured: boolean; mode: string }> | null>(null);
+  const [reviewOnly, setReviewOnly] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
@@ -130,20 +135,23 @@ export default function PaymentManagementDashboard() {
 
   const loadData = async () => {
     setIsLoading(true);
+    setLoadError('');
     try {
-      const [payList, allocList, accList, caseList] = await Promise.all([
-        apiFetch("/payments").catch(() => []),
+      const [payList, allocList, accList, caseList, providerList] = await Promise.all([
+        apiFetch("/payments"),
         apiFetch("/cases/allocations").catch(() => []),
-        apiFetch("/payment-accounts").catch(() => []),
+        apiFetch("/payment-accounts"),
         apiFetch("/cases").catch(() => []),
+        apiFetch("/payments/providers").catch(() => null),
       ]);
 
+      setProviders(providerList);
       setPayments(Array.isArray(payList) ? payList : []);
       setAllocations(Array.isArray(allocList) ? allocList : []);
       setAccounts(Array.isArray(accList) ? accList : []);
       setCases(Array.isArray(caseList) ? caseList : []);
     } catch (err) {
-      console.error("Error loading finance data:", err);
+      setLoadError(err instanceof Error ? err.message : "Unable to load finance records");
     } finally {
       setIsLoading(false);
     }
@@ -261,11 +269,11 @@ export default function PaymentManagementDashboard() {
 
   // KPIs
   const totalVerifiedRevenue = payments
-    .filter((p) => p.status === "SUCCESS")
+    .filter((p) => p.status === "SUCCESS" && p.currency === "NGN")
     .reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const totalPendingAmount = payments
-    .filter((p) => p.status === "PENDING")
+    .filter((p) => p.status === "PENDING" && p.currency === "NGN")
     .reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const totalInvoicesCount = payments.length;
@@ -281,53 +289,37 @@ export default function PaymentManagementDashboard() {
       (p.description && p.description.toLowerCase().includes(q));
 
     const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && (!reviewOnly || (p.status === "PENDING" && !!p.proofUrl));
   });
 
   return (
     <div className="space-y-8">
-      {/* Page Title & Quick Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Financial Operations & Billing</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Authorize client payments, issue official legal fee requests, and manage receiving accounts.
-          </p>
+      <section className="relative overflow-hidden rounded-[28px] bg-[#123f32] px-6 py-8 text-white sm:px-9 sm:py-10">
+        <div className="pointer-events-none absolute -right-12 -top-24 h-80 w-80 rounded-full border-[40px] border-white/5" />
+        <div className="relative flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-xl"><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#bbd6aa]">Midlex / Finance workspace</p><h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Every payment. In view.</h1><p className="mt-3 text-sm leading-6 text-white/70">Track invoices created by admin, review transfer receipts, and keep client payments reconciled.</p></div>
+          <button onClick={loadData} disabled={isLoading} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm hover:bg-white/10 disabled:opacity-50"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/> Refresh records</button>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={loadData}
-            className="p-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-            title="Refresh Ledger"
-          >
-            <RefreshCw size={16} className={isLoading ? "animate-spin text-emerald-600" : ""} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-
-          <button
-            onClick={() => setIsAccountModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Landmark size={16} className="text-emerald-700" />
-            <span>Bank Accounts</span>
-          </button>
-
-          <button
-            onClick={() => setIsRequestModalOpen(true)}
-            className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-emerald-900/20 cursor-pointer"
-          >
-            <Plus size={18} />
-            <span>Issue Payment Invoice</span>
-          </button>
+        <div className="relative mt-7 flex flex-wrap gap-3">
+          <button onClick={() => { setActiveTab('transactions'); setReviewOnly(true); setStatusFilter('PENDING'); }} className="inline-flex items-center gap-2 rounded-xl bg-[#d9ebc6] px-5 py-3 text-sm font-semibold text-[#163f31]"><ShieldCheck size={17}/> Review receipts <span className="rounded-full bg-[#163f31] px-2 py-0.5 text-xs text-white">{payments.filter(p => p.status === 'PENDING' && p.proofUrl).length}</span></button>
+          <button onClick={() => setActiveTab('accounts')} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">Receiving accounts</button>
+          {user?.role === 'ADMIN' && <button onClick={() => setIsRequestModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10"><Plus size={17}/> Create invoice</button>}
         </div>
-      </div>
+      </section>
+      {loadError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{loadError} <button className="ml-2 underline" onClick={loadData}>Retry</button></div>}
+      <section className="grid gap-4 md:grid-cols-2">
+        {[{ key: 'opay', name: 'OPay', badge: 'O', description: 'Hosted checkout and business-account transfers.' }, { key: 'moniepoint', name: 'Moniepoint', badge: 'M', description: 'Monnify checkout and business-account transfers.' }].map(provider => {
+          const status = providers?.[provider.key];
+          const receiving = accounts.filter(a => a.bankName.toLowerCase().includes(provider.key === 'opay' ? 'opay' : 'moniepoint'));
+          return <article key={provider.key} className="flex gap-4 rounded-2xl border border-[#dce6df] bg-white p-5"><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold ${provider.key === 'opay' ? 'bg-[#d9f7eb] text-[#087f5b]' : 'bg-[#e9eeff] text-[#2354c5]'}`}>{provider.badge}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold text-[#173e34]">{provider.name}</h2><span className="rounded-full bg-[#f1f5ee] px-2.5 py-1 text-[10px] font-semibold text-[#56705f]">{status ? status.configured ? `${status.mode === 'live' ? 'Live' : 'Sandbox'} configured` : 'Checkout setup required' : 'Checkout status unavailable'}</span></div><p className="mt-2 text-xs leading-5 text-[#718277]">{provider.description}</p><button onClick={() => { setAccountForm({ ...accountForm, bankName: provider.name }); setIsAccountModalOpen(true); }} className="mt-3 text-xs font-semibold text-[#245942]">{receiving.length ? `${receiving.length} receiving account(s) · Add another` : 'Add receiving account'} <ArrowUpRight size={12} className="inline"/></button></div></article>;
+        })}
+      </section>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Verified Revenue</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Collected · NGN</span>
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
               ₦
             </div>
@@ -344,7 +336,7 @@ export default function PaymentManagementDashboard() {
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Verification</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Outstanding · NGN</span>
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
               <Clock size={20} />
             </div>
@@ -354,7 +346,7 @@ export default function PaymentManagementDashboard() {
               ₦{totalPendingAmount.toLocaleString()}
             </div>
             <p className="text-xs text-amber-700 font-semibold mt-1 flex items-center gap-1">
-              <AlertCircle size={13} /> {pendingCount} Pending Invoices / Proofs
+              <AlertCircle size={13} /> {pendingCount} unpaid invoices
             </p>
           </div>
         </div>
@@ -393,7 +385,7 @@ export default function PaymentManagementDashboard() {
       {/* Tabs Navigation */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 flex flex-wrap gap-2">
         <button
-          onClick={() => setActiveTab("transactions")}
+          onClick={() => { setActiveTab("transactions"); setReviewOnly(false); }}
           className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
             activeTab === "transactions"
               ? "bg-emerald-800 text-white shadow-sm"
@@ -403,7 +395,7 @@ export default function PaymentManagementDashboard() {
           <CreditCard size={16} />
           <span>Transactions & Verification</span>
           {pendingCount > 0 && (
-            <span className="bg-amber-400 text-amber-950 font-black text-[11px] px-2 py-0.5 rounded-full">
+            <span className="bg-[#d9ebc6] text-[#163f31] font-black text-[11px] px-2 py-0.5 rounded-full">
               {pendingCount}
             </span>
           )}
@@ -451,7 +443,7 @@ export default function PaymentManagementDashboard() {
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status:</span>
+              {reviewOnly && <button onClick={() => setReviewOnly(false)} className="text-xs font-semibold text-emerald-700">Receipts only ×</button>}<span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -501,7 +493,7 @@ export default function PaymentManagementDashboard() {
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/75 transition-colors">
                         <td className="py-4 px-4 font-mono font-bold text-slate-800">
-                          {p.txRef}
+                          {p.txRef}<span className="mt-1 block font-sans text-[10px] font-medium text-slate-500">{p.paymentProvider || p.account?.bankName || 'Bank transfer'}</span>
                         </td>
                         <td className="py-4 px-4">
                           <p className="font-bold text-slate-900">{p.client?.name || "Midlex Client"}</p>
@@ -524,7 +516,7 @@ export default function PaymentManagementDashboard() {
                             </span>
                           )}
                           {isPending && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
                               <Clock size={12} /> Pending Review
                             </span>
                           )}
@@ -536,6 +528,7 @@ export default function PaymentManagementDashboard() {
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {p.status === 'PENDING' && ['OPAY', 'MONNIFY'].includes(p.paymentProvider || '') && <button disabled={isVerifying} onClick={async () => { setIsVerifying(true); try { await apiFetch(`/payments/${p.id}/${p.paymentProvider === 'MONNIFY' ? 'monnify' : 'opay'}-sync`, { method: 'POST' }); await loadData(); } catch (e) { alert(e instanceof Error ? e.message : 'Could not verify provider payment'); } finally { setIsVerifying(false); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Check provider</button>}
                             {p.proofUrl && (
                               <button
                                 onClick={() => setSelectedProof(p)}
@@ -546,24 +539,17 @@ export default function PaymentManagementDashboard() {
                               </button>
                             )}
 
-                            {isPending && (
+                            {isPending && p.proofUrl && (
                               <>
                                 <button
-                                  onClick={() => handleVerifyPayment(p.id, "SUCCESS")}
+                                  onClick={() => { setVerificationNote(''); setSelectedProof(p); }}
                                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm"
                                   title="Approve and mark payment cleared"
                                 >
                                   <CheckCircle2 size={13} />
-                                  <span>Approve</span>
+                                  <span>Review</span>
                                 </button>
-                                <button
-                                  onClick={() => handleVerifyPayment(p.id, "FAILED")}
-                                  className="px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                  title="Decline payment"
-                                >
-                                  <XCircle size={13} />
-                                  <span>Reject</span>
-                                </button>
+
                               </>
                             )}
                           </div>
@@ -862,6 +848,7 @@ export default function PaymentManagementDashboard() {
                 </div>
               )}
 
+              <datalist id="receiving-banks"><option value="OPay"/><option value="Moniepoint"/><option value="Zenith Bank"/><option value="Access Bank"/></datalist>
               <form onSubmit={handleCreateAccount} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -871,7 +858,7 @@ export default function PaymentManagementDashboard() {
                     type="text"
                     value={accountForm.bankName}
                     onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
-                    placeholder="e.g. Zenith Bank / Access Bank"
+                    placeholder="OPay, Moniepoint or another bank" list="receiving-banks"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-600"
                     required
                   />

@@ -84,6 +84,7 @@ export default function PaymentsPage() {
   const [verifyForm, setVerifyForm] = useState({ status: 'SUCCESS', note: '' });
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
+  const [providerSetup, setProviderSetup] = useState<Record<string, { configured: boolean }> | null>(null);
   const [selectedMethodByPayment, setSelectedMethodByPayment] = useState<Record<string, 'opay' | 'transfer'>>({});
 
   const load = async () => {
@@ -95,6 +96,14 @@ export default function PaymentsPage() {
   useEffect(() => {
     const fetchPayments = async () => {
       try {
+        const setup = await apiFetch('/payments/providers').catch(() => null);
+        setProviderSetup(setup);
+        const id = new URLSearchParams(window.location.search).get('monnifyPayment');
+        if (id && user?.role === 'CLIENT') {
+          try { await apiFetch(`/payments/${encodeURIComponent(id)}/monnify-sync`, { method: 'POST' }); }
+          catch (error) { alert(error instanceof Error ? error.message : 'Payment confirmation is pending. Refresh provider status shortly.'); }
+          finally { window.history.replaceState(null, '', window.location.pathname); }
+        }
         await load();
         await loadAccounts();
       } catch (error) {
@@ -182,16 +191,16 @@ export default function PaymentsPage() {
 
   const currency = filteredPayments.find((p) => !!p.currency)?.currency || 'NGN';
 
-  const startOpayCheckout = async (paymentId: string) => {
+  const startOpayCheckout = async (paymentId: string, provider = 'opay') => {
     setIsStartingCheckoutByPayment((p) => ({ ...p, [paymentId]: true }));
     try {
-      const data = await apiFetch(`/payments/${paymentId}/opay-checkout`, {
+      const data = await apiFetch(`/payments/${paymentId}/${provider}-checkout`, {
         method: 'POST',
       });
       if (!data?.checkoutUrl) throw new Error('No checkout URL returned');
       window.location.href = data.checkoutUrl;
     } catch (e: any) {
-      alert(e?.message || 'Unable to start OPay checkout');
+      alert(e?.message || 'Unable to start checkout');
     } finally {
       setIsStartingCheckoutByPayment((p) => ({ ...p, [paymentId]: false }));
     }
@@ -200,7 +209,8 @@ export default function PaymentsPage() {
   const syncOpayPayment = async (paymentId: string) => {
     setIsSyncingByPayment((p) => ({ ...p, [paymentId]: true }));
     try {
-      await apiFetch(`/payments/${paymentId}/opay-sync`, { method: 'POST' });
+      const provider = payments.find(p => p.id === paymentId)?.paymentProvider === 'MONNIFY' ? 'monnify' : 'opay';
+      await apiFetch(`/payments/${paymentId}/${provider}-sync`, { method: 'POST' });
       await load();
     } catch (e: any) {
       alert(e?.message || 'Unable to refresh OPay status');
@@ -699,7 +709,7 @@ export default function PaymentsPage() {
                     : 'text-gray-500 hover:text-primary'
                 }`}
               >
-                OPay Checkout
+                Online checkout
               </button>
               <button
                 type="button"
@@ -717,18 +727,19 @@ export default function PaymentsPage() {
             {method === 'opay' ? (
               <div className="space-y-3 pt-1">
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  Pay securely online using card, bank transfer, or OPay wallet. The transaction updates instantly.
+                  Choose a configured payment provider. Payment is confirmed by the server after verification.
                 </p>
                 {canUseOpayCheckout(p) && (
                   <button
                     type="button"
                     onClick={() => startOpayCheckout(p.id)}
-                    disabled={!!isStartingCheckoutByPayment[p.id]}
+                    disabled={!!isStartingCheckoutByPayment[p.id] || !providerSetup?.opay?.configured}
                     className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/10 hover:bg-primary/95 transition-all disabled:opacity-50"
                   >
-                    {isStartingCheckoutByPayment[p.id] ? 'Opening OPay...' : 'Pay with OPay'}
+                    {providerSetup?.opay?.configured ? 'Pay with OPay' : 'OPay · Setup required'}
                   </button>
                 )}
+                <button type="button" disabled={!!isStartingCheckoutByPayment[p.id] || !providerSetup?.moniepoint?.configured} onClick={() => startOpayCheckout(p.id, 'monnify')} className="w-full rounded-2xl border border-primary px-4 py-3 text-sm font-bold text-primary disabled:opacity-50">{providerSetup?.moniepoint?.configured ? 'Moniepoint checkout · via Monnify' : 'Moniepoint · Setup required'}</button>
               </div>
             ) : (
               <div className="space-y-4 pt-1">
@@ -791,15 +802,15 @@ export default function PaymentsPage() {
           </div>
         )}
 
-        {/* Sync OPay status action */}
-        {(user?.role === 'CLIENT' || user?.role === 'ADMIN' || user?.role === 'LAWYER') && p.paymentProvider === 'OPAY' && p.status === 'PENDING' && (
+        {/* Check provider status action */}
+        {(user?.role === 'CLIENT' || user?.role === 'ADMIN' || user?.role === 'LAWYER') && (p.paymentProvider === 'OPAY' || (p.paymentProvider === 'MONNIFY' && user?.role !== 'LAWYER')) && p.status === 'PENDING' && (
           <button
             type="button"
             onClick={() => syncOpayPayment(p.id)}
             disabled={!!isSyncingByPayment[p.id]}
             className="w-full rounded-2xl bg-secondary/10 border border-secondary/20 px-4 py-3 text-sm font-bold text-secondary hover:bg-secondary/15 transition-all disabled:opacity-50 sm:w-auto"
           >
-            {isSyncingByPayment[p.id] ? 'Refreshing...' : user?.role === 'CLIENT' ? 'Refresh OPay Status' : 'Sync OPay status'}
+            {isSyncingByPayment[p.id] ? 'Refreshing...' : user?.role === 'CLIENT' ? 'Refresh payment status' : 'Check provider status'}
           </button>
         )}
 
