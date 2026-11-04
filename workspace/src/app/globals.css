@@ -246,6 +246,29 @@ form {
   opacity: 0.65;
 }
 
+.staff-login-download {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid #dce8dd;
+  border-radius: 8px;
+  color: var(--green);
+  background: #f5f8f3;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  text-decoration: none;
+}
+
+.staff-login-download:hover {
+  border-color: #b7cdb9;
+  background: #edf4eb;
+}
+
 .login-divider {
   display: flex;
   align-items: center;

@@ -2,7 +2,7 @@
 import Brand from '../../components/Brand';
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole, Download } from 'lucide-react';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
@@ -192,6 +192,17 @@ export default function Login() {
             <GoogleMark />
             <span>Continue with Google</span>
           </button>
+          {role === 'staff' && (
+            <a
+              className="staff-login-download"
+              href="https://drive.google.com/file/d/19v0FpRCzcbmKC9CMzpAW3NJBxfVl9GyU/view?usp=sharing"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download size={17} />
+              <span>Download Midlex HRMS app for Android</span>
+            </a>
+          )}
           <div className="login-note">
             <ShieldCheck size={19} />
             <span>
