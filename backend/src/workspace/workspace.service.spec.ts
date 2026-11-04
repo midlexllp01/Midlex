@@ -61,10 +61,19 @@ describe('Workspace access and project SSO', () => {
     const admin = await service.launch(owner, 'legal-admin', 'ADMIN');
     const lawyer = await service.launch(owner, 'legal-staff', 'USER');
     const counselAdmin = await service.launch(owner, 'legal-staff', 'ADMIN');
-    expect(new URL(admin.url).origin).toBe('https://midlex-admin.midlex.xyz');
+    expect(new URL(admin.url).origin).toBe('https://legal-admin.midlex.xyz');
     expect(new URL(lawyer.url).origin).toBe('https://lawyer.midlex.xyz');
     expect(new URL(counselAdmin.url).origin).toBe('https://lawyer.midlex.xyz');
     await expect(service.update(owner, member.id, { grants: { 'legal-admin': 'BOTH' } })).rejects.toThrow('Legal Management grants admin access');
+  });
+  it('ignores a legal admin URL that points back to the workspace', async () => {
+    process.env.WORKSPACE_PROJECT_LEGAL_ADMIN_ADMIN_URL = 'https://admin.midlex.xyz';
+    try {
+      const handoff = await service.launch(owner, 'legal-admin', 'ADMIN');
+      expect(new URL(handoff.url).origin).toBe('https://legal-admin.midlex.xyz');
+    } finally {
+      delete process.env.WORKSPACE_PROJECT_LEGAL_ADMIN_ADMIN_URL;
+    }
   });
   it('returns only an approved workspace origin after project handoff', async () => {
     const approved = await service.launch(member, 'cbt', 'USER', 'https://staff.midlex.xyz');

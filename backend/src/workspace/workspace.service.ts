@@ -24,11 +24,11 @@ export const PROJECTS = [
 
 export const PRODUCTION_PROJECT_URLS: Record<string, { admin: string; user: string }> = {
   'legal-admin': {
-    admin: 'https://midlex-admin.midlex.xyz',
+    admin: 'https://legal-admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'legal-staff': {
-    admin: 'https://midlex-admin.midlex.xyz',
+    admin: 'https://legal-admin.midlex.xyz',
     user: 'https://lawyer.midlex.xyz',
   },
   'finance': {
@@ -291,7 +291,10 @@ export class WorkspaceService implements OnModuleInit {
     if (value) {
       try {
         const url = new URL(value);
-        if (url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(url.hostname))) {
+        if (
+          (url.protocol === 'https:' && !['staff.midlex.xyz', 'admin.midlex.xyz', 'developer.midlex.xyz'].includes(url.hostname)) ||
+          (process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(url.hostname))
+        ) {
           return url.origin;
         }
       } catch {}
