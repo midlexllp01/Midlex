@@ -813,6 +813,66 @@ nav button > span.unread-badge {
   padding: 0;
 }
 
+.staff-app-download {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin: -6px 0 24px;
+  border: 1px solid #dce8dd;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.staff-app-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--green);
+  background: #edf4eb;
+}
+
+.staff-app-copy {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.staff-app-copy strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.staff-app-copy span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.staff-app-download-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--green);
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.staff-app-download-button:hover {
+  background: #174c3e;
+}
+
 .orbit-art {
   position: relative;
   width: 180px;
@@ -1636,6 +1696,22 @@ td small {
   .welcome-banner {
     padding: 22px 20px;
     border-radius: 12px;
+  }
+
+  .staff-app-download {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 14px;
+  }
+
+  .staff-app-copy {
+    flex-basis: calc(100% - 54px);
+    align-self: center;
+  }
+
+  .staff-app-download-button {
+    width: 100%;
   }
 
   .welcome-banner h2 {

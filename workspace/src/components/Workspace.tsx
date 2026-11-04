@@ -12,6 +12,7 @@ import {
   Check,
   ChevronRight,
   Code2,
+  Download,
   ExternalLink,
   FolderOpen,
   LayoutDashboard,
@@ -23,6 +24,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Smartphone,
   Trash2,
   Users,
   X,
@@ -636,6 +638,25 @@ export default function Workspace({ role }: { role: string }) {
                   <Building2 size={46} />
                 </div>
               </div>
+              {role === "staff" && (
+                <section className="staff-app-download" aria-label="Midlex HRMS mobile app">
+                  <div className="staff-app-icon" aria-hidden="true">
+                    <Smartphone size={21} />
+                  </div>
+                  <div className="staff-app-copy">
+                    <strong>Midlex HRMS for Android</strong>
+                    <span>Install the staff app on your Android phone.</span>
+                  </div>
+                  <a
+                    className="staff-app-download-button"
+                    href="https://drive.google.com/uc?export=download&id=19v0FpRCzcbmKC9CMzpAW3NJBxfVl9GyU"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Download size={16} /> Download app
+                  </a>
+                </section>
+              )}
               <div className="stats">
                 <div>
                   <span>
