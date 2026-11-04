@@ -6,6 +6,12 @@ import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole, Download }
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
+declare global {
+  interface Window {
+    MidlexHRMS?: { postMessage: (message: string) => void };
+  }
+}
+
 function GoogleMark() {
   return (
     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" focusable="false">
@@ -95,11 +101,34 @@ export default function Login() {
   async function googleSubmit() {
     setBusy(true); setError('');
     try {
-      const config = { apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'midlex-llp.firebaseapp.com', projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'midlex-llp', appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID };
-      if (!config.apiKey || !config.appId) throw new Error('Google sign-in is not configured for this workspace');
-      const app = getApps().length ? getApp() : initializeApp(config);
-      const result = await signInWithPopup(getAuth(app), new GoogleAuthProvider());
-      const idToken = await result.user.getIdToken();
+      let idToken: string;
+      if (window.MidlexHRMS?.postMessage) {
+        const requestId = `google-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        idToken = await new Promise<string>((resolve, reject) => {
+          const timeout = window.setTimeout(() => finish(new Error('Google sign-in timed out. Please try again.')), 120000);
+          const handleResult = (event: Event) => {
+            const detail = (event as CustomEvent<{ requestId?: string; authenticated?: boolean; idToken?: string; error?: string | null }>).detail;
+            if (detail?.requestId !== requestId) return;
+            if (detail.authenticated && detail.idToken) finish(undefined, detail.idToken);
+            else finish(new Error(detail.error || 'Google sign-in was not completed.'));
+          };
+          const finish = (error?: Error, token?: string) => {
+            window.clearTimeout(timeout);
+            window.removeEventListener('midlex-google-auth-result', handleResult);
+            if (error) reject(error);
+            else if (token) resolve(token);
+            else reject(new Error('Google sign-in did not return a token.'));
+          };
+          window.addEventListener('midlex-google-auth-result', handleResult);
+          window.MidlexHRMS!.postMessage(JSON.stringify({ action: 'GOOGLE_SIGN_IN', requestId }));
+        });
+      } else {
+        const config = { apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'midlex-llp.firebaseapp.com', projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'midlex-llp', appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID };
+        if (!config.apiKey || !config.appId) throw new Error('Google sign-in is not configured for this workspace');
+        const app = getApps().length ? getApp() : initializeApp(config);
+        const result = await signInWithPopup(getAuth(app), new GoogleAuthProvider());
+        idToken = await result.user.getIdToken();
+      }
       const response = await fetch('/api/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Google sign-in failed');
