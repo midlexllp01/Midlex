@@ -2,7 +2,7 @@
 import Brand from "./Brand";
 import WorkspaceChat from "./WorkspaceChat";
 import ChatErrorBoundary from "./ChatErrorBoundary";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -95,6 +95,7 @@ const roleDetails: Record<
 export default function Workspace({ role }: { role: string }) {
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
+  const appLaunchHandled = useRef(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("overview");
@@ -119,7 +120,12 @@ export default function Workspace({ role }: { role: string }) {
       const next = await api("me");
       const userRole = next.user.role.toLowerCase();
       if (userRole !== role) {
-        router.replace(`/${userRole}`);
+        const params = new URLSearchParams(window.location.search);
+        const access = params.get("access");
+        const appLaunch = params.get("midlexApp") === "1" && params.get("openProject") === "hrms" && ["ADMIN", "USER"].includes(access || "")
+          ? `?midlexApp=1&openProject=hrms&access=${access}`
+          : params.get("midlexApp") === "1" ? "?midlexApp=1" : "";
+        router.replace(`/${userRole}${appLaunch}`);
         return;
       }
       setData({
@@ -132,6 +138,35 @@ export default function Workspace({ role }: { role: string }) {
       router.replace(`/login?role=${role}`);
     }
   }, [role, router]);
+  const launch = useCallback(async (project: Project, access: Access) => {
+    const appMode = new URLSearchParams(window.location.search).get("midlexApp") === "1";
+    const newTab = appMode ? null : window.open("about:blank", "_blank");
+    if (!appMode && !newTab) {
+      setError("Allow pop-ups for this workspace to open your project in a new tab.");
+      return;
+    }
+    if (newTab) {
+      newTab.opener = null;
+      newTab.document.title = "Opening Midlex project";
+      newTab.document.body.textContent = "Preparing your secure project session…";
+    }
+    setLaunching(project.id);
+    setError("");
+    try {
+      const result = await api(`launch/${project.id}`, "POST", {
+        access,
+        returnUrl: window.location.origin,
+      });
+      if (appMode) window.location.assign(result.url);
+      else newTab!.location.replace(result.url);
+      setProfileProject(null);
+    } catch (e) {
+      newTab?.close();
+      setError(e instanceof Error ? e.message : "Unable to open project");
+    } finally {
+      setLaunching("");
+    }
+  }, []);
   useEffect(() => {
     void load();
   }, [load]);
@@ -146,6 +181,28 @@ export default function Workspace({ role }: { role: string }) {
       window.clearInterval(timer);
     };
   }, [load]);
+  useEffect(() => {
+    if (!data || appLaunchHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("midlexApp") !== "1" || params.get("openProject") !== "hrms") return;
+    const requestedAccess = params.get("access");
+    if (requestedAccess !== "ADMIN" && requestedAccess !== "USER") return;
+    appLaunchHandled.current = true;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}?midlexApp=1`);
+    if (data.user.mustChangePassword) {
+      setError("Change your Workspace password before opening the HRMS app.");
+      return;
+    }
+    const project = data.projects.find((item) => item.id === "hrms");
+    const allowed = project?.access === "BOTH" || project?.access === requestedAccess;
+    if (!project || !allowed) {
+      setError(requestedAccess === "ADMIN"
+        ? "Your Workspace account does not have HRMS admin access. Ask your Workspace administrator to assign the HRMS admin profile."
+        : "Your Workspace account does not have the HRMS staff profile assigned.");
+      return;
+    }
+    void launch(project, requestedAccess);
+  }, [data, launch]);
   useEffect(() => {
     if (!data?.user.id) return;
     const refreshUnread = async () => {
@@ -220,36 +277,6 @@ export default function Workspace({ role }: { role: string }) {
     `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()),
   );
   const needsPassword = data.user.mustChangePassword || passwordOpen;
-  async function launch(project: Project, access: Access) {
-    const appMode =
-      new URLSearchParams(window.location.search).get("midlexApp") === "1";
-    const newTab = appMode ? null : window.open("about:blank", "_blank");
-    if (!appMode && !newTab) {
-      setError("Allow pop-ups for this workspace to open your project in a new tab.");
-      return;
-    }
-    if (newTab) {
-      newTab.opener = null;
-      newTab.document.title = "Opening Midlex project";
-      newTab.document.body.textContent = "Preparing your secure project session…";
-    }
-    setLaunching(project.id);
-    setError("");
-    try {
-      const result = await api(`launch/${project.id}`, "POST", {
-        access,
-        returnUrl: window.location.origin,
-      });
-      if (appMode) window.location.assign(result.url);
-      else newTab!.location.replace(result.url);
-      setProfileProject(null);
-    } catch (e) {
-      newTab?.close();
-      setError(e instanceof Error ? e.message : "Unable to open project");
-    } finally {
-      setLaunching("");
-    }
-  }
   async function toggleRolePrivileges(person: Person) {
     if (!data) return;
     const nextRole = person.role === "ADMIN" ? "STAFF" : "ADMIN";

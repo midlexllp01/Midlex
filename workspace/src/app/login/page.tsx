@@ -1,6 +1,6 @@
 'use client';
 import Brand from '../../components/Brand';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'lucide-react';
 import { getApp, getApps, initializeApp } from 'firebase/app';
@@ -21,6 +21,8 @@ export default function Login() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(false);
+  const appSessionCheck = useRef(false);
   const [role, setRole] = useState<'admin' | 'staff' | 'developer'>('admin');
 
   useEffect(() => {
@@ -38,7 +40,30 @@ export default function Login() {
     } else {
       setRole('admin');
     }
-  }, []);
+    const appAccess = params.get('access');
+    if (params.get('midlexApp') !== '1' || params.get('openProject') !== 'hrms' || !['ADMIN', 'USER'].includes(appAccess || '') || appSessionCheck.current) return;
+    appSessionCheck.current = true;
+    setBusy(true);
+    setCheckingSession(true);
+    fetch('/api/me', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((data) => {
+        const userRole = typeof data?.user?.role === 'string' ? data.user.role.toLowerCase() : '';
+        if (['admin', 'staff', 'developer'].includes(userRole)) {
+          router.replace(`/${userRole}?midlexApp=1&openProject=hrms&access=${appAccess}`);
+          return;
+        }
+        setBusy(false);
+        setCheckingSession(false);
+      })
+      .catch(() => {
+        setBusy(false);
+        setCheckingSession(false);
+      });
+  }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,8 +79,12 @@ export default function Login() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const userRole = data.user.role.toLowerCase();
-      const appMode = new URLSearchParams(window.location.search).get('midlexApp') === '1';
-      router.replace(`/${userRole}${appMode ? '?midlexApp=1' : ''}`);
+      const params = new URLSearchParams(window.location.search);
+      const appAccess = params.get('access');
+      const appLaunch = params.get('midlexApp') === '1' && params.get('openProject') === 'hrms' && ['ADMIN', 'USER'].includes(appAccess || '')
+        ? `?midlexApp=1&openProject=hrms&access=${appAccess}`
+        : params.get('midlexApp') === '1' ? '?midlexApp=1' : '';
+      router.replace(`/${userRole}${appLaunch}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign in failed');
     } finally {
@@ -74,8 +103,12 @@ export default function Login() {
       const response = await fetch('/api/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Google sign-in failed');
-      const appMode = new URLSearchParams(window.location.search).get('midlexApp') === '1';
-      router.replace(`/${data.user.role.toLowerCase()}${appMode ? '?midlexApp=1' : ''}`);
+      const params = new URLSearchParams(window.location.search);
+      const appAccess = params.get('access');
+      const appLaunch = params.get('midlexApp') === '1' && params.get('openProject') === 'hrms' && ['ADMIN', 'USER'].includes(appAccess || '')
+        ? `?midlexApp=1&openProject=hrms&access=${appAccess}`
+        : params.get('midlexApp') === '1' ? '?midlexApp=1' : '';
+      router.replace(`/${data.user.role.toLowerCase()}${appLaunch}`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Google sign-in failed'); }
     finally { setBusy(false); }
   }
@@ -150,7 +183,7 @@ export default function Login() {
             </label>
             {error && <div className="notice error" role="alert">{error}</div>}
             <button className="primary" disabled={busy}>
-              {busy ? 'Signing in…' : roleMeta.btnText}
+              {checkingSession ? 'Checking Workspace session…' : busy ? 'Signing in…' : roleMeta.btnText}
               <ArrowRight size={18} />
             </button>
           </form>
