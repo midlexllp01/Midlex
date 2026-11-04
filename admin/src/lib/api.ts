@@ -1,6 +1,15 @@
 function resolveApiUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
 
+  // Workspace project tokens are issued and verified by the central backend.
+  // A legacy project API may use a different JWT secret, which would turn a
+  // successful SSO handoff into a 401 and send the user back to /login.
+  if (typeof window !== 'undefined' &&
+      localStorage.getItem('midlex_workspace_return') &&
+      localStorage.getItem('midlex_token')) {
+    return 'https://midlex-project-backend.onrender.com';
+  }
+
   // If in browser on local network/localhost, prioritize local NestJS server running on port 3001
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
@@ -47,7 +56,9 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
       return apiFetch<T>(endpoint, options, retries - 1);
     }
 
-    const fallbackUrl = (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
+    const fallbackUrl = API_URL === 'https://midlex-project-backend.onrender.com'
+      ? API_URL
+      : (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
     if (API_URL !== fallbackUrl) {
       try {
         API_URL = fallbackUrl;

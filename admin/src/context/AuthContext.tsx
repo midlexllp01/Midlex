@@ -38,6 +38,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (newToken: string, newUser: User) => {
+    // A password login must use the project's API, even if this browser
+    // previously opened the portal through a workspace handoff.
+    localStorage.removeItem('midlex_workspace_return');
     localStorage.setItem('midlex_token', newToken);
     localStorage.setItem('midlex_user', JSON.stringify(newUser));
     setToken(newToken);
