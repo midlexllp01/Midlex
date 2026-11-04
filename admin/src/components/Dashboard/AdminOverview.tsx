@@ -37,7 +37,7 @@ export default function AdminOverview() {
     // Check saved department
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('midlex_admin_dept') as PracticeDepartment | null;
-      if (saved) {
+      if (saved === 'LITIGATION' || saved === 'GENERAL') {
         setSelectedDept(saved);
       } else {
         // Open 2-squares selection modal by default on initial admin login
@@ -67,11 +67,21 @@ export default function AdminOverview() {
     fetchOverview();
   }, []);
 
+  useEffect(() => {
+    const sync = () => {
+      const value = localStorage.getItem('midlex_admin_dept');
+      if (value === 'LITIGATION' || value === 'GENERAL') setSelectedDept(value);
+    };
+    window.addEventListener('midlex:practice-change', sync);
+    return () => window.removeEventListener('midlex:practice-change', sync);
+  }, []);
+
   const handleSelectDepartment = (dept: PracticeDepartment) => {
     setSelectedDept(dept);
     setIsDeptModalOpen(false);
     if (typeof window !== 'undefined') {
       localStorage.setItem('midlex_admin_dept', dept);
+      window.dispatchEvent(new Event('midlex:practice-change'));
     }
   };
 
@@ -165,134 +175,14 @@ export default function AdminOverview() {
         currentDept={selectedDept}
       />
 
-      {/* 2 Big Profile Choice Buttons (Litigation vs General & Property) directly on Screen */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-            CHOOSE LAW FIRM PRACTICE PROFILE WORKSPACE
-          </span>
-          {selectedDept && (
-            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-              Active: {selectedDept === 'LITIGATION' ? '⚖️ Litigation Practice Profile' : '🏢 General & Property Profile'}
-            </span>
-          )}
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#dce6df] bg-white p-5 sm:p-6">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7b8d83]">Practice overview</p>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[#173e34]">{selectedDept === 'LITIGATION' ? 'Litigation' : selectedDept === 'GENERAL' ? 'General & Property' : 'Your practice'}</h2>
+          <p className="mt-1 text-sm text-[#688176]">{selectedDept === 'LITIGATION' ? 'Court matters, upcoming hearings and the teams handling them.' : 'Retainers, property matters and your advisory teams.'}</p>
         </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* LITIGATION PROFILE BUTTON */}
-          <button
-            type="button"
-            onClick={() => handleSelectDepartment('LITIGATION')}
-            className={`p-6 sm:p-8 rounded-[32px] border-2 text-left transition-all relative overflow-hidden group shadow-lg ${
-              selectedDept === 'LITIGATION'
-                ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white border-blue-500 shadow-blue-900/30 scale-[1.01]'
-                : 'bg-white text-slate-900 border-slate-200 hover:border-blue-500 hover:shadow-xl'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl mb-4 ${
-                selectedDept === 'LITIGATION' ? 'bg-blue-500/20 text-amber-300 border border-blue-400/30' : 'bg-blue-50 text-blue-700 border border-blue-100'
-              }`}>
-                ⚖️
-              </div>
-              <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${
-                selectedDept === 'LITIGATION' ? 'bg-amber-400 text-slate-950' : 'bg-blue-100 text-blue-800'
-              }`}>
-                LITIGATION PRACTICE
-              </span>
-            </div>
-
-            <h3 className={`text-2xl font-black mb-2 ${selectedDept === 'LITIGATION' ? 'text-white' : 'text-slate-900'}`}>
-              Litigation Practice Profile
-            </h3>
-            <p className={`text-xs leading-relaxed ${selectedDept === 'LITIGATION' ? 'text-slate-300' : 'text-slate-500'}`}>
-              Monitor High Court suits, trial calendars, court dates, litigation advocate teams (Titan, Anchor, etc.), and trial proceedings.
-            </p>
-
-            <div className={`mt-6 pt-4 border-t flex items-center justify-between text-xs font-bold ${
-              selectedDept === 'LITIGATION' ? 'border-white/10 text-amber-300' : 'border-slate-100 text-blue-700'
-            }`}>
-              <span>Monitor Litigation Practice ➔</span>
-              {selectedDept === 'LITIGATION' && <span className="bg-emerald-500 text-slate-950 px-3.5 py-1 rounded-full text-[10px] font-black">ACTIVE VIEW</span>}
-            </div>
-          </button>
-
-          {/* GENERAL & PROPERTY PROFILE BUTTON */}
-          <button
-            type="button"
-            onClick={() => handleSelectDepartment('GENERAL')}
-            className={`p-6 sm:p-8 rounded-[32px] border-2 text-left transition-all relative overflow-hidden group shadow-lg ${
-              selectedDept === 'GENERAL'
-                ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-amber-950 text-white border-amber-500 shadow-amber-900/30 scale-[1.01]'
-                : 'bg-white text-slate-900 border-slate-200 hover:border-amber-500 hover:shadow-xl'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl mb-4 ${
-                selectedDept === 'GENERAL' ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30' : 'bg-amber-50 text-amber-700 border border-amber-100'
-              }`}>
-                🏢
-              </div>
-              <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${
-                selectedDept === 'GENERAL' ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900'
-              }`}>
-                GENERAL / REALTY PRACTICE
-              </span>
-            </div>
-
-            <h3 className={`text-2xl font-black mb-2 ${selectedDept === 'GENERAL' ? 'text-white' : 'text-slate-900'}`}>
-              General & Property Profile
-            </h3>
-            <p className={`text-xs leading-relaxed ${selectedDept === 'GENERAL' ? 'text-slate-300' : 'text-slate-500'}`}>
-              Monitor Midlex Royalty plans, retainer claims, property work, corporate retainers, and client advisory teams.
-            </p>
-
-            <div className={`mt-6 pt-4 border-t flex items-center justify-between text-xs font-bold ${
-              selectedDept === 'GENERAL' ? 'border-white/10 text-amber-300' : 'border-slate-100 text-amber-700'
-            }`}>
-              <span>Monitor General & Property Practice ➔</span>
-              {selectedDept === 'GENERAL' && <span className="bg-emerald-500 text-slate-950 px-3.5 py-1 rounded-full text-[10px] font-black">ACTIVE VIEW</span>}
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Top Department Monitoring Status Bar */}
-      <div className={`p-6 rounded-[28px] text-white shadow-xl flex flex-wrap items-center justify-between gap-4 border transition-all ${
-        selectedDept === 'LITIGATION'
-          ? 'bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border-blue-500/30'
-          : 'bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 border-amber-500/30'
-      }`}>
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl ${
-            selectedDept === 'LITIGATION' ? 'bg-blue-600/30 text-amber-300 border border-blue-400/40' : 'bg-amber-600/30 text-amber-400 border border-amber-400/40'
-          }`}>
-            {selectedDept === 'LITIGATION' ? '⚖️' : '🏢'}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-0.5 bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-400/30">
-                ACTIVE MONITORING WORKSPACE
-              </span>
-            </div>
-            <h3 className="text-xl font-black text-white mt-1">
-              {selectedDept === 'LITIGATION' ? 'Litigation Practice Department' : 'General & Property (Realty) Practice Department'}
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              {selectedDept === 'LITIGATION'
-                ? 'Monitoring High Court suits, trial calendars, court filings, & advocate team assignments.'
-                : 'Monitoring retainer claims, plan coverage, property work, assigned General teams, and commercial advisory.'}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => setIsDeptModalOpen(true)}
-          className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2"
-        >
-          🔄 Switch Department View (2 Squares)
-        </button>
-      </div>
+        <button type="button" onClick={() => setIsDeptModalOpen(true)} className="rounded-xl border border-[#ccdcd0] px-4 py-2.5 text-sm font-semibold text-[#23533e] hover:bg-[#f0f6ed]">Switch practice</button>
+      </section>
 
       <MonthPickerFilter
         selectedMonth={selectedMonth}
