@@ -68,11 +68,21 @@ export default function LawyerOverview() {
     fetchOverview();
   }, []);
 
+  useEffect(() => {
+    const sync = () => {
+      const value = localStorage.getItem('midlex_admin_dept');
+      if (value === 'LITIGATION' || value === 'GENERAL') setSelectedDept(value);
+    };
+    window.addEventListener('midlex:practice-change', sync);
+    return () => window.removeEventListener('midlex:practice-change', sync);
+  }, []);
+
   const handleSelectDepartment = (dept: PracticeDepartment) => {
     setSelectedDept(dept);
     setIsDeptModalOpen(false);
     if (typeof window !== 'undefined') {
       localStorage.setItem('midlex_admin_dept', dept);
+      window.dispatchEvent(new Event('midlex:practice-change'));
     }
   };
 
