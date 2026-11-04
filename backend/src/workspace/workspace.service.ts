@@ -264,6 +264,11 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   private projectUrl(project: string, access: Access) {
+    // HRMS has separate production entry points. Keep profile routing fixed so
+    // stale Render URL overrides cannot send User and Admin to the same portal.
+    if (project === 'hrms') {
+      return access === 'ADMIN' ? 'https://admin.hrms.midlex.xyz' : 'https://hrms.midlex.xyz';
+    }
     const prefix = `WORKSPACE_PROJECT_${project.replace(/-/g, '_').toUpperCase()}`;
     const destination = project === 'legal-staff' ? 'USER' : access;
     const value = process.env[`${prefix}_${destination}_URL`] || process.env[`${prefix}_URL`];
