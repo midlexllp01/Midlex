@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,6 +10,8 @@ export const defaultTeams = [
   'MARITIME PRACTICE GROUP',
   'CORPORATE DISPUTE TEAM',
 ];
+
+const generalTeamMarkers = ['GENERAL', 'RETAINER', 'PROPERTY', 'REALTY', 'FAMILY', 'PRIVATE CLIENT'];
 
 export const defaultCourts = [
   'HIGH COURT BENIN CITY',
@@ -185,6 +187,46 @@ export class DirectoryService implements OnModuleInit {
   async getTeams(): Promise<string[]> {
     if (!this.isLoaded) await this.loadData();
     return [...this.teams];
+  }
+
+  async getLitigationTeams(): Promise<string[]> {
+    return (await this.getTeams()).filter(team => !generalTeamMarkers.some(marker => team.toUpperCase().includes(marker)));
+  }
+
+  async createLitigationTeam(name: string): Promise<string[]> {
+    const clean = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toUpperCase() : '';
+    if (clean.length < 3 || clean.length > 80 || !/^[A-Z0-9 &.'-]+$/.test(clean)) throw new BadRequestException('Enter a team name of 3 to 80 letters');
+    if (generalTeamMarkers.some(marker => clean.includes(marker))) throw new BadRequestException('Use a litigation team name');
+    const existing = await this.getTeams();
+    if (existing.some(team => team.toUpperCase() === clean)) throw new BadRequestException('Team already exists');
+    const next = [...existing, clean];
+    const record = await this.prisma.directory.findUnique({ where: { id: 'settings' } });
+    if (record) await this.prisma.directory.update({ where: { id: 'settings' }, data: { teams: next } });
+    else await this.prisma.directory.create({ data: { id: 'settings', teams: next, courts: await this.getCourts() } });
+    this.teams = next;
+    this.saveToFile();
+    return this.getLitigationTeams();
+  }
+
+  async eligibleLitigationLawyers() {
+    const users = await this.prisma.workspaceUser.findMany();
+    return users.filter((user: any) => user.active && (user.role === 'DEVELOPER' || ['USER', 'BOTH'].includes(user.grants?.['legal-staff']))).map((user: any) => ({
+      id: user.id, name: user.name, email: user.email, litigationTeam: user.litigationTeam || null,
+    }));
+  }
+
+  async assignLitigationLawyer(workspaceId: string, teamName: string) {
+    const user = await this.prisma.workspaceUser.findUnique({ where: { id: workspaceId } });
+    if (!user) throw new NotFoundException('Workspace user not found');
+    if (!user.active || !(user.role === 'DEVELOPER' || ['USER', 'BOTH'].includes(user.grants?.['legal-staff']))) {
+      throw new ForbiddenException('This user has no active Counsel Workspace grant');
+    }
+    const clean = typeof teamName === 'string' ? teamName.trim().toUpperCase() : '';
+    if (clean && !(await this.getLitigationTeams()).includes(clean)) throw new BadRequestException('Choose an existing litigation team');
+    const updated = await this.prisma.mutateWorkspaceUser(user.id, () => ({ litigationTeam: clean || null }));
+    const legacy = await this.prisma.user.findUnique({ where: { email: user.email } });
+    if (legacy) await this.prisma.user.update({ where: { id: legacy.id }, data: { litigationTeam: clean || null, department: 'LITIGATION' } });
+    return { id: updated.id, name: updated.name, email: updated.email, litigationTeam: updated.litigationTeam || null };
   }
 
   async addTeam(name: string): Promise<string[]> {

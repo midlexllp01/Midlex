@@ -6,6 +6,8 @@ import {
   Param,
   Patch,
   Delete,
+  ForbiddenException,
+  NotFoundException,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -18,6 +20,15 @@ import { Role, CaseStatus } from '@prisma/client';
 @Controller('cases')
 export class CasesController {
   constructor(private casesService: CasesService) {}
+
+  private async requireCaseAccess(id: string, user: any) {
+    const matter = await this.casesService.findOne(id);
+    if (!matter) throw new NotFoundException('Case not found');
+    if (user.role === Role.ADMIN || user.role === 'ACCOUNTANT') return matter;
+    if (user.role === Role.CLIENT && matter.clientId === user.id) return matter;
+    if (user.role === Role.LAWYER && (await this.casesService.findByLawyer(user.id)).some(c => c.id === id)) return matter;
+    throw new ForbiddenException('You do not have access to this case');
+  }
 
   @Get('public-share/:id')
   async getPublicShare(@Param('id') id: string) {
@@ -73,8 +84,8 @@ export class CasesController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async findOne(@Param('id') id: string) {
-    return this.casesService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    return this.requireCaseAccess(id, req.user);
   }
 
   @Patch(':id/status')
@@ -83,7 +94,9 @@ export class CasesController {
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: CaseStatus,
+    @Request() req: any,
   ) {
+    await this.requireCaseAccess(id, req.user);
     return this.casesService.updateStatus(id, status);
   }
 
@@ -93,7 +106,13 @@ export class CasesController {
   async updateCase(
     @Param('id') id: string,
     @Body() body: { title?: string; description?: string; suitNumber?: string; court?: string; litigationTeam?: string; stage?: string; pendingTask?: string; category?: string; subCategory?: string },
+    @Request() req: any,
   ) {
+    await this.requireCaseAccess(id, req.user);
+    if (req.user.role !== Role.ADMIN) {
+      delete body.litigationTeam;
+      delete body.category;
+    }
     return this.casesService.updateCase(id, body);
   }
 
@@ -109,7 +128,8 @@ export class CasesController {
 
   @Get(':id/timeline')
   @UseGuards(JwtAuthGuard)
-  async getTimeline(@Param('id') id: string) {
+  async getTimeline(@Param('id') id: string, @Request() req: any) {
+    await this.requireCaseAccess(id, req.user);
     return this.casesService.getTimeline(id);
   }
 
@@ -121,6 +141,7 @@ export class CasesController {
     @Body() body: { title: string; description?: string; status?: string; date?: string },
     @Request() req: any,
   ) {
+    await this.requireCaseAccess(id, req.user);
     return this.casesService.addTimelineEvent(id, {
       title: body.title,
       description: body.description,
@@ -134,7 +155,10 @@ export class CasesController {
   @Delete(':id/timeline/:timelineId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.LAWYER)
-  async deleteTimelineEvent(@Param('timelineId') timelineId: string) {
+  async deleteTimelineEvent(@Param('timelineId') timelineId: string, @Request() req: any) {
+    const caseId = await this.casesService.timelineCaseId(timelineId);
+    if (!caseId) throw new NotFoundException('Timeline event not found');
+    await this.requireCaseAccess(caseId, req.user);
     return this.casesService.deleteTimelineEvent(timelineId);
   }
 }

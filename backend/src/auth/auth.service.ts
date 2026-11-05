@@ -66,7 +66,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        litigationTeam: user.litigationTeam || 'TEAM ANCHOR',
+        litigationTeam: user.litigationTeam || null,
       },
     };
   }
