@@ -81,7 +81,7 @@ export default function LawyerDashboard() {
               Allocated Litigation Team
             </span>
             <h2 className="text-xl font-black tracking-wide uppercase text-white mt-1">
-              {user?.litigationTeam || 'TEAM ANCHOR'}&apos;S CASE DIRECTORY
+              {user?.litigationTeam ? `${user.litigationTeam}'S CASE DIRECTORY` : 'YOUR ASSIGNED CASE DIRECTORY'}
             </h2>
             <p className="text-xs text-gray-300">
               Official litigation team directory allocated to you by Super Admin.
@@ -92,7 +92,7 @@ export default function LawyerDashboard() {
           href="/dashboard/cases"
           className="px-6 py-3.5 bg-secondary text-white font-black rounded-2xl shadow-xl hover:bg-secondary/90 hover:scale-[1.02] transition-all text-xs tracking-wider uppercase border border-amber-300/50 flex items-center gap-2 shrink-0 self-start md:self-auto"
         >
-          <span>📂 OPEN {(user?.litigationTeam || 'TEAM ANCHOR').toUpperCase()} CASE DIRECTORY</span>
+          <span>📂 OPEN {(user?.litigationTeam || 'ASSIGNED').toUpperCase()} CASE DIRECTORY</span>
           <ArrowRight size={16} />
         </Link>
       </div>

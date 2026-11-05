@@ -186,8 +186,17 @@ export class UsersController {
 
   @Get('team-messages/:teamName')
   @Roles(Role.ADMIN, Role.LAWYER)
-  async getTeamMessages(@Param('teamName') teamName: string) {
+  async getTeamMessages(@Param('teamName') teamName: string, @Request() req: any) {
+    await this.requireTeamAccess(teamName, req.user);
     return this.usersService.getTeamMessages(teamName);
+  }
+
+  private async requireTeamAccess(teamName: string, actor: any) {
+    if (actor.role === Role.ADMIN) return;
+    const lawyer = await this.usersService.findOneById(actor.id);
+    if (!lawyer?.litigationTeam || lawyer.litigationTeam.trim().toUpperCase() !== teamName.trim().toUpperCase()) {
+      throw new ForbiddenException('You do not have access to this team');
+    }
   }
 
   @Post('team-messages/:teamName')
@@ -197,6 +206,7 @@ export class UsersController {
     @Request() req: any,
     @Body() body: any,
   ) {
+    await this.requireTeamAccess(teamName, req.user);
     return this.usersService.sendTeamMessage({
       teamName,
       senderId: req.user.id,

@@ -300,6 +300,11 @@ export class CasesService {
     );
   }
 
+  async timelineCaseId(timelineId: string): Promise<string | null> {
+    const event = await this.prisma.caseTimeline.findUnique({ where: { id: timelineId } });
+    return event?.caseId || null;
+  }
+
   async findByClient(clientId: string): Promise<Case[]> {
     return this.prisma.case.findMany({
       where: { clientId },
