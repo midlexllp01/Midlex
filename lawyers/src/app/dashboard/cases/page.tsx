@@ -3,6 +3,7 @@ import React, { useDeferredValue, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { Download, FileText, Landmark, UsersRound } from 'lucide-react';
 import DashboardSearchBar from '@/components/Dashboard/DashboardSearchBar';
 import {
   downloadDirectoryAsPdf,
@@ -60,7 +61,7 @@ const defaultCourts = [
   'HIGH COURT EHOR',
 ];
 
-import MonthPickerFilter, { getCurrentMonthStr, isItemInMonth } from '@/components/Dashboard/MonthPickerFilter';
+import MonthPickerFilter, { isItemInMonth } from '@/components/Dashboard/MonthPickerFilter';
 
 export default function CasesPage() {
   const { user } = useAuth();
@@ -68,7 +69,7 @@ export default function CasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
-  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthStr());
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
 
   const [teams, setTeams] = useState<string[]>(defaultTeams);
   const [lawyerTeam, setLawyerTeam] = useState<string | null>(null);
@@ -301,7 +302,8 @@ export default function CasesPage() {
   </div>;
 
   const normalizedQuery = deferredQuery.trim().toLowerCase();
-  const filteredCases = cases.filter((c) => {
+  const accessibleCases = cases.filter((c) => !isLawyer || (!!assignedTeam && (c.litigationTeam || '').trim().toUpperCase() === assignedTeam.toUpperCase()));
+  const filteredCases = accessibleCases.filter((c) => {
     const ov = overrides[c.id] || {};
     const suit = ov.suitNumber || c.suitNumber || '';
     const courtName = ov.court || c.court || '';
@@ -391,46 +393,61 @@ export default function CasesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-5 rounded-3xl border border-[#dce6df] bg-white p-5 shadow-sm md:p-7 xl:flex-row xl:items-center xl:justify-between">
         <div>
           {isStaff && (
-            <span className="px-3 py-1 bg-secondary/10 border border-secondary text-secondary rounded-full text-xs font-bold uppercase tracking-widest">
-              OFFICIAL LITIGATION DIRECTORY
+            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#5b786a]">
+              Legal workspace / case records
             </span>
           )}
-          <h2 className="text-3xl font-bold text-primary mt-2">
-            {isStaff ? 'MIDLEX CASE DIRECTORY' : 'My Cases'}
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#173e34] md:text-3xl">
+            {isStaff ? 'Case directory' : 'My cases'}
           </h2>
+          {isStaff && <p className="mt-2 text-sm text-[#668075]">
+            {isLawyer ? assignedTeam ? `Showing cases assigned to ${assignedTeam}.` : 'Ask an admin to assign your litigation team.' : 'Review cases, teams and court records.'}
+          </p>}
         </div>
 
         {isStaff ? (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => setIsTeamsModalOpen(true)}
-              className="px-4 py-3 bg-secondary text-white font-bold rounded-2xl shadow-lg hover:bg-secondary/90 transition-all text-xs flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#dce6df] bg-white px-3.5 py-2.5 text-sm font-semibold text-[#173e34] transition-colors hover:bg-[#f0f6ed]"
             >
-              <span>Litigation Teams ({visibleTeams.length})</span>
+              <UsersRound size={17} aria-hidden="true" />
+              <span>{isLawyer ? 'My team' : 'Teams'}</span>
+              <span className="rounded-md bg-[#eaf1e7] px-1.5 py-0.5 text-xs text-[#23533e]">{visibleTeams.length}</span>
             </button>
             <button
+              type="button"
               onClick={() => setIsCourtsModalOpen(true)}
-              className="px-4 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg hover:bg-primary/90 transition-all text-xs flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#dce6df] bg-white px-3.5 py-2.5 text-sm font-semibold text-[#173e34] transition-colors hover:bg-[#f0f6ed]"
             >
-              <span>Courts Directory ({courts.length})</span>
+              <Landmark size={17} aria-hidden="true" />
+              <span>Courts</span>
+              <span className="rounded-md bg-[#eaf1e7] px-1.5 py-0.5 text-xs text-[#23533e]">{courts.length}</span>
             </button>
-            <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block" />
+            <div className="mx-1 hidden h-7 w-px bg-[#dce6df] sm:block" />
             <button
+              type="button"
               onClick={handleDownloadPdf}
-              className="px-4 py-3 bg-red-600 text-white font-bold rounded-2xl shadow-lg hover:bg-red-700 transition-all text-xs flex items-center gap-1.5"
-              title="Download Filtered Directory as PDF"
+              disabled={filteredCases.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#dce6df] bg-white px-3.5 py-2.5 text-sm font-semibold text-[#23533e] transition-colors hover:bg-[#f0f6ed] disabled:cursor-not-allowed disabled:opacity-45"
+              title="Download visible cases as PDF"
             >
-              <span>📄 Export PDF</span>
+              <FileText size={17} aria-hidden="true" />
+              <span>PDF</span>
             </button>
             <button
+              type="button"
               onClick={handleDownloadDocx}
-              className="px-4 py-3 bg-blue-600 text-white font-bold rounded-2xl shadow-lg hover:bg-blue-700 transition-all text-xs flex items-center gap-1.5"
-              title="Download Filtered Directory as Word DOCX"
+              disabled={filteredCases.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1c5945] px-3.5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#173e34] disabled:cursor-not-allowed disabled:opacity-45"
+              title="Download visible cases as Word document"
             >
-              <span>📝 Export DOCX</span>
+              <Download size={17} aria-hidden="true" />
+              <span>Word</span>
             </button>
           </div>
         ) : (
@@ -449,7 +466,8 @@ export default function CasesPage() {
         selectedMonth={selectedMonth}
         onChange={setSelectedMonth}
         totalCount={filteredCases.length}
-        countLabel="cases in directory"
+        countLabel="cases"
+        compact
       />
 
       {/* Category Tabs: Litigation vs General Retainer */}
@@ -462,7 +480,7 @@ export default function CasesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          📂 All Client Matters ({cases.length})
+          📂 All Client Matters ({accessibleCases.length})
         </button>
         <button
           onClick={() => setCategoryFilter('LITIGATION')}
@@ -472,7 +490,7 @@ export default function CasesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          ⚖️ Litigation Issues ({cases.filter((c: any) => (c.category || 'LITIGATION').toUpperCase() === 'LITIGATION').length})
+          ⚖️ Litigation Issues ({accessibleCases.filter((c: any) => (c.category || 'LITIGATION').toUpperCase() === 'LITIGATION').length})
         </button>
         <button
           onClick={() => setCategoryFilter('GENERAL')}
@@ -482,7 +500,7 @@ export default function CasesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          🏛️ General / Retainer Matters ({cases.filter((c: any) => (c.category || '').toUpperCase() === 'GENERAL').length})
+          🏛️ General / Retainer Matters ({accessibleCases.filter((c: any) => (c.category || '').toUpperCase() === 'GENERAL').length})
         </button>
       </div>
 
@@ -686,7 +704,7 @@ export default function CasesPage() {
               {filteredCases.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-8 py-20 text-center text-gray-400 italic">
-                    No case directory entries matched your search.
+                    {isLawyer && !assignedTeam ? 'Ask an admin to assign your litigation team to view cases.' : selectedMonth !== 'ALL' ? 'No cases in this month. Select All months to see the full directory.' : 'No cases match these filters yet.'}
                   </td>
                 </tr>
               )}
