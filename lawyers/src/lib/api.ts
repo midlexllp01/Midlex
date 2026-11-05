@@ -1,6 +1,14 @@
 function resolveApiUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
 
+  // The workspace handoff issues a project token from the central identity
+  // backend. Legacy project APIs cannot validate that token.
+  if (typeof window !== 'undefined' &&
+      localStorage.getItem('midlex_workspace_return') &&
+      localStorage.getItem('midlex_token')) {
+    return 'https://midlex-project-backend.onrender.com';
+  }
+
   // If in browser on local network/localhost, prioritize local NestJS server running on port 3001
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
@@ -47,7 +55,9 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
       return apiFetch<T>(endpoint, options, retries - 1);
     }
 
-    const fallbackUrl = (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
+    const fallbackUrl = API_URL === 'https://midlex-project-backend.onrender.com'
+      ? API_URL
+      : (process.env.NEXT_PUBLIC_API_URL?.trim() || "https://midlex-new.onrender.com").replace(/\/+$/, "");
     if (API_URL !== fallbackUrl) {
       try {
         API_URL = fallbackUrl;
@@ -81,10 +91,13 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
     if (typeof window !== 'undefined') {
       console.warn(`[apiFetch HTTP ${response.status}] ${API_URL}${endpoint}: ${message}`);
       if (response.status === 401) {
+        const workspaceUrl = localStorage.getItem('midlex_workspace_return');
         localStorage.removeItem('midlex_token');
         localStorage.removeItem('midlex_user');
         if (window.location.pathname.startsWith('/dashboard')) {
-          window.location.href = '/login';
+          window.location.href = workspaceUrl && ['https://staff.midlex.xyz', 'https://admin.midlex.xyz', 'https://developer.midlex.xyz'].includes(workspaceUrl)
+            ? workspaceUrl
+            : '/login';
         }
       }
     }
