@@ -189,4 +189,9 @@ describe('Workspace access and project SSO', () => {
     expect(current.accessVersion).toBe(3);
     await expect(service.inspect(session.token)).rejects.toThrow('revoked');
   });
+  it('lets members edit their own profile without changing identity or access', async () => {
+    const result = await service.updateAccount(member, { name: '  Ada   Counsel  ', phone: '+234 800 123 4567', jobTitle: 'Associate', role: 'DEVELOPER', email: 'other@example.com', grants: { cbt: 'ADMIN' } });
+    expect(result.user).toMatchObject({ name: 'Ada Counsel', phone: '+234 800 123 4567', jobTitle: 'Associate', email: member.email, role: 'STAFF', grants: { cbt: 'USER' } });
+    await expect(service.updateAccount(member, { name: 'A', phone: '', jobTitle: '' })).rejects.toThrow('Full name');
+  });
 });
