@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import RemindersBar from '@/components/Dashboard/RemindersBar';
 import NotificationBell from '@/components/Dashboard/NotificationBell';
+import { Building2, Scale } from 'lucide-react';
 
 const sidebarItems = {
   ADMIN: [
@@ -91,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   className={`flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${
                     isActive 
-                      ? 'bg-secondary text-white shadow-lg shadow-secondary/20' 
+                      ? 'bg-[#dcebd4] text-[#173e34]'
                       : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -172,7 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${
                         isActive
-                          ? 'bg-secondary text-white shadow-lg shadow-secondary/20'
+                          ? 'bg-[#dcebd4] text-[#173e34]'
                           : 'text-white/60 hover:text-white hover:bg-white/5'
                       }`}
                     >
@@ -244,7 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {/* Quick Profile Switcher Pill for Admin & Lawyers */}
             {(user.role === 'ADMIN' || user.role === 'LAWYER') && (
-              <div className="hidden md:flex items-center bg-slate-900 border border-amber-400/30 rounded-2xl p-1 shadow-sm">
+              <div className="hidden items-center rounded-xl border border-[#dce6df] bg-[#f4f8f2] p-1 md:flex">
                 <button
                   type="button"
                   onClick={() => {
@@ -254,12 +255,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       window.location.href = '/dashboard';
                     }
                   }}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-black tracking-wider uppercase transition-all flex items-center gap-1 text-amber-300 hover:bg-slate-800"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#23533e] transition-colors hover:bg-[#e3eee0]"
                   title="Switch to Litigation Profile"
                 >
-                  ⚖️ LITIGATION
+                  <Scale size={15} strokeWidth={1.6} /> Litigation
                 </button>
-                <div className="h-4 w-px bg-slate-700 mx-0.5" />
+                <div className="mx-0.5 h-4 w-px bg-[#d3e0d5]" />
                 <button
                   type="button"
                   onClick={() => {
@@ -269,10 +270,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       window.location.href = '/dashboard';
                     }
                   }}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-black tracking-wider uppercase transition-all flex items-center gap-1 text-amber-400 hover:bg-slate-800"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#23533e] transition-colors hover:bg-[#e3eee0]"
                   title="Switch to General & Property Profile"
                 >
-                  🏢 GENERAL
+                  <Building2 size={15} strokeWidth={1.6} /> General & Property
                 </button>
               </div>
             )}
@@ -284,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <motion.div 
               whileHover={{ scale: 1.1, rotate: 5 }}
-              className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold border border-secondary/20"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#dce6df] bg-[#f0f6ed] font-semibold text-[#23533e]"
             >
               {user.name.charAt(0)}
             </motion.div>

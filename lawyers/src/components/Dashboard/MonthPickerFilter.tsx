@@ -79,25 +79,25 @@ export default function MonthPickerFilter({
   };
 
   return (
-    <div className={`bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm space-y-4 ${className}`}>
+    <div className={`space-y-4 rounded-2xl border border-[#dce6df] bg-white p-5 ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Left Status Label */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf1e7] text-[#23533e]">
             <Calendar size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-secondary px-2 py-0.5 rounded-md bg-secondary/10 border border-secondary/20">
-                Monthly Filter & Reset
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#688176]">
+                Filter by month
               </span>
               {selectedMonth === currentMonth && (
-                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                  Current Month View
+                <span className="rounded-full bg-[#eaf1e7] px-2 py-0.5 text-[10px] font-semibold text-[#23533e]">
+                  Current month
                 </span>
               )}
             </div>
-            <h4 className="text-base font-extrabold text-primary mt-0.5">
+            <h4 className="mt-1 text-base font-semibold text-[#173e34]">
               {formatMonthDisplay(selectedMonth)}
             </h4>
           </div>
@@ -109,7 +109,7 @@ export default function MonthPickerFilter({
           <button
             onClick={handlePrevMonth}
             title="Previous Month"
-            className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold transition-all flex items-center gap-1 text-xs"
+            className="flex items-center gap-1 rounded-xl border border-[#dce6df] p-2.5 text-xs font-semibold text-[#23533e] transition-colors hover:bg-[#f0f6ed]"
           >
             <ChevronLeft size={16} />
             <span className="hidden md:inline">Prev Month</span>
@@ -125,7 +125,7 @@ export default function MonthPickerFilter({
                   onChange(e.target.value);
                 }
               }}
-              className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-bold text-primary bg-gray-50 hover:bg-gray-100 outline-none cursor-pointer shadow-inner"
+              className="cursor-pointer rounded-xl border border-[#dce6df] bg-white px-3 py-2 text-xs font-semibold text-[#173e34] outline-none focus-visible:border-[#1c5945]"
               title="Select Month/Year"
             />
           </div>
@@ -133,7 +133,7 @@ export default function MonthPickerFilter({
           <button
             onClick={handleNextMonth}
             title="Next Month"
-            className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold transition-all flex items-center gap-1 text-xs"
+            className="flex items-center gap-1 rounded-xl border border-[#dce6df] p-2.5 text-xs font-semibold text-[#23533e] transition-colors hover:bg-[#f0f6ed]"
           >
             <span className="hidden md:inline">Next Month</span>
             <ChevronRight size={16} />
@@ -144,8 +144,8 @@ export default function MonthPickerFilter({
             onClick={() => onChange(currentMonth)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
               selectedMonth === currentMonth
-                ? 'bg-primary text-white border-primary shadow-sm'
-                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                ? 'border-[#23533e] bg-[#23533e] text-white'
+                : 'border-[#dce6df] bg-white text-[#23533e] hover:bg-[#f0f6ed]'
             }`}
           >
             Reset to Current Month
@@ -156,8 +156,8 @@ export default function MonthPickerFilter({
             onClick={() => onChange('ALL')}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
               selectedMonth === 'ALL'
-                ? 'bg-secondary text-white border-secondary shadow-sm'
-                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                ? 'border-[#23533e] bg-[#23533e] text-white'
+                : 'border-[#dce6df] bg-white text-[#23533e] hover:bg-[#f0f6ed]'
             }`}
           >
             All Months
@@ -167,11 +167,11 @@ export default function MonthPickerFilter({
 
       {/* Summary Footer */}
       {typeof totalCount === 'number' && (
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100 font-medium">
+        <div className="flex items-center justify-between border-t border-[#e5ebe5] pt-3 text-xs font-medium text-[#688176]">
           <span>
-            Showing statistics & records for <strong className="text-primary font-bold">{formatMonthDisplay(selectedMonth)}</strong>
+            Showing records for <strong className="font-semibold text-[#173e34]">{formatMonthDisplay(selectedMonth)}</strong>
           </span>
-          <span className="font-bold text-primary px-2.5 py-1 bg-gray-100 rounded-lg">
+          <span className="rounded-lg bg-[#eaf1e7] px-2.5 py-1 font-semibold text-[#23533e]">
             {totalCount} {countLabel} recorded
           </span>
         </div>
