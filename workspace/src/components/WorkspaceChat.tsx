@@ -5,7 +5,7 @@ import { MessageCircle, Send, X } from 'lucide-react';
 type Person = { id: string; name: string; email: string; role: string };
 type Message = { id: string; senderId: string; content: string; createdAt: string; sender?: Person };
 type Conversation = { id: string; otherUser: Person; messages: Message[] };
-type Broadcast = { id: string; recipientId: string; subject: string; content: string; sender: Person; readAt?: string | null; repliedConversationId?: string | null };
+type Broadcast = { id: string; recipientId: string; subject: string; content: string; createdAt: string; sender: Person; readAt?: string | null; repliedConversationId?: string | null };
 
 async function request(path: string, method = 'GET', body?: unknown) {
   const response = await fetch(`/api/${path}`, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
