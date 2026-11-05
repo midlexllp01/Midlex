@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (newToken: string, newUser: User) => {
+    // A direct portal login must not inherit a previous workspace handoff.
+    localStorage.removeItem('midlex_workspace_return');
     localStorage.setItem('midlex_token', newToken);
     localStorage.setItem('midlex_user', JSON.stringify(newUser));
     setToken(newToken);
