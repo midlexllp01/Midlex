@@ -190,9 +190,46 @@ export class DirectoryService implements OnModuleInit {
     return this.getLitigationTeams();
   }
 
+  async renameLitigationTeam(oldName: string, newName: string): Promise<string[]> {
+    const oldTeam = oldName.trim().toUpperCase();
+    const nextTeam = typeof newName === 'string' ? newName.trim().replace(/\s+/g, ' ').toUpperCase() : '';
+    const teams = await this.getTeams();
+    if (!(await this.getLitigationTeams()).includes(oldTeam)) throw new NotFoundException('Litigation team not found');
+    if (nextTeam.length < 3 || nextTeam.length > 80 || !/^[A-Z0-9 &.'-]+$/.test(nextTeam) || generalTeamMarkers.some(marker => nextTeam.includes(marker))) throw new BadRequestException('Enter a valid litigation team name');
+    if (teams.some(team => team.toUpperCase() === nextTeam && team !== oldTeam)) throw new BadRequestException('Team already exists');
+    if (nextTeam === oldTeam) return this.getLitigationTeams();
+    const record = await this.prisma.directory.findUnique({ where: { id: 'settings' } });
+    if (!record) throw new NotFoundException('Team directory not found');
+    await this.prisma.directory.update({ where: { id: 'settings' }, data: { teams: teams.map(team => team === oldTeam ? nextTeam : team) } });
+    this.teams = teams.map(team => team === oldTeam ? nextTeam : team);
+    const members = await this.prisma.workspaceUser.findMany({ where: { litigationTeam: oldTeam } });
+    for (const member of members) await this.prisma.mutateWorkspaceUser(member.id, () => ({ litigationTeam: nextTeam }));
+    await this.prisma.user.updateMany({ where: { litigationTeam: oldTeam }, data: { litigationTeam: nextTeam } });
+    await this.prisma.case.updateMany({ where: { litigationTeam: oldTeam }, data: { litigationTeam: nextTeam } });
+    await this.prisma.message.updateMany({ where: { teamName: oldTeam }, data: { teamName: nextTeam } });
+    this.saveToFile();
+    return this.getLitigationTeams();
+  }
+
+  async deleteLitigationTeam(name: string): Promise<string[]> {
+    const team = name.trim().toUpperCase();
+    const teams = await this.getTeams();
+    if (!(await this.getLitigationTeams()).includes(team)) throw new NotFoundException('Litigation team not found');
+    const record = await this.prisma.directory.findUnique({ where: { id: 'settings' } });
+    if (!record) throw new NotFoundException('Team directory not found');
+    await this.prisma.directory.update({ where: { id: 'settings' }, data: { teams: teams.filter(item => item !== team) } });
+    this.teams = teams.filter(item => item !== team);
+    const members = await this.prisma.workspaceUser.findMany({ where: { litigationTeam: team } });
+    for (const member of members) await this.prisma.mutateWorkspaceUser(member.id, () => ({ litigationTeam: null }));
+    await this.prisma.user.updateMany({ where: { litigationTeam: team }, data: { litigationTeam: null } });
+    await this.prisma.case.updateMany({ where: { litigationTeam: team }, data: { litigationTeam: null } });
+    this.saveToFile();
+    return this.getLitigationTeams();
+  }
+
   async eligibleLitigationLawyers() {
     const users = await this.prisma.workspaceUser.findMany();
-    return users.filter((user: any) => user.active && (user.role === 'DEVELOPER' || ['USER', 'BOTH'].includes(user.grants?.['legal-staff']))).map((user: any) => ({
+    return users.filter((user: any) => user.active && user.role !== 'DEVELOPER' && ['USER', 'BOTH'].includes(user.grants?.['legal-staff'])).map((user: any) => ({
       id: user.id, name: user.name, email: user.email, litigationTeam: user.litigationTeam || null,
     }));
   }
@@ -200,7 +237,7 @@ export class DirectoryService implements OnModuleInit {
   async assignLitigationLawyer(workspaceId: string, teamName: string) {
     const user = await this.prisma.workspaceUser.findUnique({ where: { id: workspaceId } });
     if (!user) throw new NotFoundException('Workspace user not found');
-    if (!user.active || !(user.role === 'DEVELOPER' || ['USER', 'BOTH'].includes(user.grants?.['legal-staff']))) {
+    if (!user.active || user.role === 'DEVELOPER' || !['USER', 'BOTH'].includes(user.grants?.['legal-staff'])) {
       throw new ForbiddenException('This user has no active Counsel Workspace grant');
     }
     const clean = typeof teamName === 'string' ? teamName.trim().toUpperCase() : '';

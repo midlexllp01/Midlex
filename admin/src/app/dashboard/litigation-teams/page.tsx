@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import { Plus, RefreshCw, Scale, Users } from 'lucide-react';
+import { Plus, RefreshCw, Scale, Users, Pencil, Trash2 } from 'lucide-react';
 
 type ApprovedLawyer = { id: string; name: string; email: string; litigationTeam: string | null };
 
@@ -17,6 +17,9 @@ export default function LitigationTeamsPage() {
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [editingTeam, setEditingTeam] = useState('');
+  const [editName, setEditName] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState('');
 
   async function load() {
     setLoading(true);
@@ -60,6 +63,32 @@ export default function LitigationTeamsPage() {
     finally { setWorking(''); }
   }
 
+  async function renameTeam(oldName: string) {
+    if (!editName.trim()) return;
+    setWorking(oldName); setError(''); setNotice('');
+    try {
+      const result = await apiFetch<string[]>(`/directory/litigation-teams/${encodeURIComponent(oldName)}`, { method: 'PATCH', body: JSON.stringify({ name: editName }) });
+      const renamed = editName.trim().replace(/\s+/g, ' ').toUpperCase();
+      setTeams(result);
+      setLawyers(current => current.map(lawyer => lawyer.litigationTeam === oldName ? { ...lawyer, litigationTeam: renamed } : lawyer));
+      setEditingTeam(''); setEditName('');
+      setNotice(`${oldName} was renamed to ${renamed}.`);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not rename team'); }
+    finally { setWorking(''); }
+  }
+
+  async function deleteTeam(team: string) {
+    setWorking(team); setError(''); setNotice('');
+    try {
+      const result = await apiFetch<string[]>(`/directory/litigation-teams/${encodeURIComponent(team)}`, { method: 'DELETE' });
+      setTeams(result);
+      setLawyers(current => current.map(lawyer => lawyer.litigationTeam === team ? { ...lawyer, litigationTeam: null } : lawyer));
+      setConfirmDelete('');
+      setNotice(`${team} was deleted. Its members and cases are now unassigned; their records remain available.`);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not delete team'); }
+    finally { setWorking(''); }
+  }
+
   if (user?.role !== 'ADMIN') return <div className="p-8 text-sm text-red-700">Admin access required.</div>;
 
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-7 sm:px-8">
@@ -78,8 +107,10 @@ export default function LitigationTeamsPage() {
         const members = lawyers.filter(lawyer => lawyer.litigationTeam === team);
         const available = lawyers.filter(lawyer => lawyer.litigationTeam !== team);
         return <article key={team} className="rounded-2xl border border-[#dbe6db] bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#e8f2e7] p-3 text-[#1a5a43]"><Scale size={21}/></span><div><h2 className="font-semibold text-[#173e34]">{team}</h2><p className="text-xs text-[#718277]">{members.length} assigned lawyer{members.length === 1 ? '' : 's'}</p></div></div><Users size={18} className="text-[#789681]"/></div>
-          <div className="mt-5 space-y-2">{members.length ? members.map(member => <div key={member.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#f4f7f2] px-3 py-2 text-sm"><span className="min-w-0 truncate text-[#173e34]">{member.name}<span className="ml-2 text-xs text-[#718277]">{member.email}</span></span><button type="button" disabled={!!working} onClick={() => void assignLawyer(member.id, '')} className="shrink-0 text-xs font-semibold text-[#617c69] underline disabled:opacity-50">Remove</button></div>) : <p className="rounded-xl bg-[#f4f7f2] px-3 py-3 text-sm text-[#718277]">No one assigned yet.</p>}</div>
+          <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#e8f2e7] p-3 text-[#1a5a43]"><Scale size={21}/></span><div><h2 className="font-semibold text-[#173e34]">{team}</h2><p className="text-xs text-[#718277]">{members.length} assigned lawyer{members.length === 1 ? '' : 's'}</p></div></div><div className="flex gap-2"><button type="button" aria-label={`Edit ${team}`} onClick={() => { setEditingTeam(team); setEditName(team); setConfirmDelete(''); }} className="rounded-lg p-2 text-[#245942] hover:bg-[#edf4e9]"><Pencil size={17}/></button><button type="button" aria-label={`Delete ${team}`} onClick={() => { setConfirmDelete(team); setEditingTeam(''); }} className="rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17}/></button></div></div>
+          {editingTeam === team && <div className="mt-4 flex flex-wrap gap-2"><input aria-label="New team name" value={editName} onChange={event => setEditName(event.target.value)} maxLength={80} className="min-w-0 flex-1 rounded-lg border border-[#d4e1d7] px-3 py-2 text-sm"/><button type="button" disabled={!!working} onClick={() => void renameTeam(team)} className="rounded-lg bg-[#1c5945] px-3 py-2 text-xs font-semibold text-white">Save name</button><button type="button" onClick={() => setEditingTeam('')} className="text-xs underline">Cancel</button></div>}
+          {confirmDelete === team && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900"><p>Delete this team? Members and cases will become unassigned. User accounts and cases will remain.</p><div className="mt-3 flex gap-3"><button type="button" disabled={!!working} onClick={() => void deleteTeam(team)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white">Delete team</button><button type="button" onClick={() => setConfirmDelete('')} className="text-xs underline">Cancel</button></div></div>}
+          <div className="mt-5 space-y-2">{members.length ? members.map(member => <div key={member.id} className="rounded-xl bg-[#f4f7f2] px-3 py-3 text-sm"><div className="font-semibold text-[#173e34]">{member.name}</div><div className="truncate text-xs text-[#718277]">{member.email}</div><div className="mt-2 flex flex-wrap items-center gap-2"><label htmlFor={`transfer-${member.id}`} className="text-xs text-[#456b55]">Team</label><select id={`transfer-${member.id}`} value={team} disabled={!!working} onChange={event => void assignLawyer(member.id, event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#d4e1d7] bg-white px-2 py-1.5 text-xs">{teams.map(option => <option key={option} value={option}>{option}</option>)}<option value="">Remove from team</option></select></div></div>) : <p className="rounded-xl bg-[#f4f7f2] px-3 py-3 text-sm text-[#718277]">No one assigned yet.</p>}</div>
           <label htmlFor={`add-${team}`} className="mt-5 block text-xs font-semibold text-[#456b55]">Add an approved lawyer</label>
           <select id={`add-${team}`} value={selection[team] || ''} onChange={event => setSelection(current => ({ ...current, [team]: event.target.value }))} disabled={!!working || !available.length} className="mt-2 w-full rounded-xl border border-[#d4e1d7] bg-white px-3 py-2.5 text-sm"><option value="">Choose a person</option>{available.map(lawyer => <option key={lawyer.id} value={lawyer.id}>{lawyer.name} — {lawyer.litigationTeam || 'Unassigned'}</option>)}</select>
           <button type="button" disabled={!!working || !selection[team]} onClick={() => { const id = selection[team]; setSelection(current => ({ ...current, [team]: '' })); void assignLawyer(id, team); }} className="mt-3 rounded-xl border border-[#1c5945] px-4 py-2 text-xs font-semibold text-[#1c5945] disabled:opacity-50">Assign to this team</button>
