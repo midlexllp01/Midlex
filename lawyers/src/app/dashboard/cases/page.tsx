@@ -119,7 +119,8 @@ export default function CasesPage() {
           }
           const backendTeams = await apiFetch<string[]>('/directory/teams');
           if (Array.isArray(backendTeams) && user?.role === 'LAWYER') {
-            setLawyerTeam(backendTeams[0] || null);
+            const assigned = user.litigationTeam?.trim().toUpperCase();
+            setLawyerTeam(assigned ? backendTeams.find(team => team.trim().toUpperCase() === assigned) || null : null);
           }
           if (Array.isArray(backendTeams) && user?.role === 'ADMIN') {
             setTeams(backendTeams);
