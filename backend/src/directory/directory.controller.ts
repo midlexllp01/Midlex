@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
 import { DirectoryService } from './directory.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -37,7 +37,12 @@ export class DirectoryController {
   }
 
   @Get('teams')
-  async getTeams() {
+  @UseGuards(JwtAuthGuard)
+  async getTeams(@Request() req: any) {
+    if (req.user?.role === Role.LAWYER) {
+      const lawyer = await this.directoryService.getLawyerTeam(req.user.id);
+      return lawyer ? [lawyer] : [];
+    }
     return this.directoryService.getTeams();
   }
 

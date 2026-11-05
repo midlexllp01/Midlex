@@ -282,21 +282,25 @@ export class CasesService {
 
   async findByLawyer(lawyerId: string): Promise<Case[]> {
     const lawyerUser = await this.prisma.user.findUnique({ where: { id: lawyerId } });
-    const team = lawyerUser?.litigationTeam;
+    const workspaceUser = lawyerUser?.email
+      ? await this.prisma.workspaceUser.findUnique({ where: { email: lawyerUser.email } })
+      : null;
+    const team = workspaceUser?.active && ['USER', 'BOTH'].includes(workspaceUser.grants?.['legal-staff'])
+      ? workspaceUser.litigationTeam?.trim()
+      : null;
+
+    // The workspace assignment is authoritative. A legacy lawyerId or stale
+    // local team must never grant access to an unassigned directory.
+    if (!team) return [];
 
     const allCases = await this.prisma.case.findMany({
       include: { client: true, lawyer: true, messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!team) {
-      return allCases.filter((c: any) => c.lawyerId === lawyerId);
-    }
-
     return allCases.filter(
       (c: any) =>
-        c.lawyerId === lawyerId ||
-        (c.litigationTeam && c.litigationTeam.trim().toUpperCase() === team.trim().toUpperCase()),
+        c.litigationTeam && c.litigationTeam.trim().toUpperCase() === team.toUpperCase(),
     );
   }
 

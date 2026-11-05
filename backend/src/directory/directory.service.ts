@@ -234,6 +234,16 @@ export class DirectoryService implements OnModuleInit {
     }));
   }
 
+  async getLawyerTeam(legacyId: string): Promise<string | null> {
+    const legacy = await this.prisma.user.findUnique({ where: { id: legacyId } });
+    const member = legacy?.email
+      ? await this.prisma.workspaceUser.findUnique({ where: { email: legacy.email } })
+      : null;
+    if (!member?.active || !['USER', 'BOTH'].includes(member.grants?.['legal-staff'])) return null;
+    const team = member.litigationTeam?.trim();
+    return team && (await this.getLitigationTeams()).includes(team.toUpperCase()) ? team.toUpperCase() : null;
+  }
+
   async assignLitigationLawyer(workspaceId: string, teamName: string) {
     const user = await this.prisma.workspaceUser.findUnique({ where: { id: workspaceId } });
     if (!user) throw new NotFoundException('Workspace user not found');

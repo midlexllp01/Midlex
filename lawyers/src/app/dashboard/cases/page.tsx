@@ -73,6 +73,7 @@ export default function CasesPage() {
   const [teamDirectoryQuery, setTeamDirectoryQuery] = useState<string>('');
 
   const [teams, setTeams] = useState<string[]>(defaultTeams);
+  const [lawyerTeam, setLawyerTeam] = useState<string | null>(null);
   const [courts, setCourts] = useState<string[]>(defaultCourts);
 
   const [selectedCourtFilter, setSelectedCourtFilter] = useState('ALL');
@@ -96,10 +97,14 @@ export default function CasesPage() {
   const [editPendingTask, setEditPendingTask] = useState('');
 
   const isStaff = user?.role === 'ADMIN' || user?.role === 'LAWYER';
+  const isLawyer = user?.role === 'LAWYER';
+  const assignedTeam = isLawyer ? lawyerTeam : null;
+  const visibleTeams = isLawyer ? (assignedTeam ? [assignedTeam] : []) : teams;
 
   useEffect(() => {
     const fetchCases = async () => {
       try {
+        if (user?.role === 'LAWYER') setLawyerTeam(null);
         const endpoint = user?.role === 'ADMIN' ? '/cases' : '/cases/my-cases';
         const data = await apiFetch(endpoint);
         setCases(data);
@@ -113,7 +118,10 @@ export default function CasesPage() {
             }
           }
           const backendTeams = await apiFetch<string[]>('/directory/teams');
-          if (Array.isArray(backendTeams)) {
+          if (Array.isArray(backendTeams) && user?.role === 'LAWYER') {
+            setLawyerTeam(backendTeams[0] || null);
+          }
+          if (Array.isArray(backendTeams) && user?.role === 'ADMIN') {
             setTeams(backendTeams);
             if (typeof window !== 'undefined') {
               localStorage.setItem('midlex_teams', JSON.stringify(backendTeams));
@@ -133,7 +141,7 @@ export default function CasesPage() {
     // Load saved case overrides, teams, and courts from localStorage if present
     if (typeof window !== 'undefined') {
       const savedTeams = localStorage.getItem('midlex_teams');
-      if (savedTeams) {
+      if (savedTeams && user?.role === 'ADMIN') {
         try {
           const parsed = JSON.parse(savedTeams);
           if (Array.isArray(parsed) && parsed.length > 0) setTeams(parsed);
@@ -147,7 +155,7 @@ export default function CasesPage() {
         } catch (e) {}
       }
       const savedOverrides = localStorage.getItem('midlex_case_overrides');
-      if (savedOverrides) {
+      if (savedOverrides && user?.role === 'ADMIN') {
         try { setOverrides(JSON.parse(savedOverrides)); } catch (e) {}
       }
     }
@@ -299,7 +307,9 @@ export default function CasesPage() {
     const ov = overrides[c.id] || {};
     const suit = ov.suitNumber || c.suitNumber || '';
     const courtName = ov.court || c.court || '';
-    const teamName = ov.litigationTeam || c.litigationTeam || '';
+    const teamName = isLawyer ? c.litigationTeam || '' : ov.litigationTeam || c.litigationTeam || '';
+
+    if (isLawyer && (!assignedTeam || teamName.trim().toUpperCase() !== assignedTeam.toUpperCase())) return false;
 
     if (!isItemInMonth(c.createdAt, selectedMonth)) {
       return false;
@@ -401,7 +411,7 @@ export default function CasesPage() {
               onClick={() => setIsTeamsModalOpen(true)}
               className="px-4 py-3 bg-secondary text-white font-bold rounded-2xl shadow-lg hover:bg-secondary/90 transition-all text-xs flex items-center gap-2"
             >
-              <span>Litigation Teams ({teams.length})</span>
+              <span>Litigation Teams ({visibleTeams.length})</span>
             </button>
             <button
               onClick={() => setIsCourtsModalOpen(true)}
@@ -458,7 +468,7 @@ export default function CasesPage() {
                     ? 'SUPER ADMIN GENERAL & PROPERTY REALTY DIRECTORIES'
                     : user?.role === 'ADMIN'
                     ? 'SUPER ADMIN LITIGATION & PRACTICE DIRECTORIES'
-                    : `${(user as any)?.litigationTeam || 'TEAM ANCHOR'} CASE DIRECTORY`}
+                    : assignedTeam ? `${assignedTeam} CASE DIRECTORY` : 'NO TEAM ASSIGNED'}
                 </h3>
                 <p className="text-xs text-amber-200/80 font-medium">
                   {categoryFilter === 'GENERAL'
@@ -476,7 +486,7 @@ export default function CasesPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             {user?.role === 'ADMIN' ? (
-              teams.map((teamName) => (
+              visibleTeams.map((teamName) => (
                 <button
                   key={teamName}
                   onClick={() => setActiveTeamDirectoryModal(teamName)}
@@ -489,20 +499,19 @@ export default function CasesPage() {
                 </button>
               ))
             ) : (
-              (() => {
-                const lawyerTeam = (user as any)?.litigationTeam || 'TEAM ANCHOR';
-                return (
+              assignedTeam ? (
                   <button
-                    onClick={() => setActiveTeamDirectoryModal(lawyerTeam)}
+                    onClick={() => setActiveTeamDirectoryModal(assignedTeam)}
                     className="px-7 py-4 bg-secondary text-white font-black rounded-2xl shadow-2xl hover:bg-secondary/90 hover:scale-[1.02] transition-all text-sm tracking-wider uppercase border-2 border-amber-300/50 flex items-center gap-3 group cursor-pointer"
                   >
-                    <span>📂 OPEN {lawyerTeam} CASE DIRECTORY</span>
+                    <span>📂 OPEN {assignedTeam} CASE DIRECTORY</span>
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
                   </button>
-                );
-              })()
+              ) : (
+                <p className="text-sm text-white">Ask an admin to assign you to a litigation team before you can view its case directory.</p>
+              )
             )}
           </div>
         </div>
@@ -582,8 +591,8 @@ export default function CasesPage() {
             onChange={(e) => setSelectedTeamFilter(e.target.value)}
             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
-            <option value="ALL">🛡️ All Litigation Teams ({teams.length})</option>
-            {teams.map((team) => (
+            <option value="ALL">🛡️ {isLawyer ? 'My Litigation Team' : `All Litigation Teams (${visibleTeams.length})`}</option>
+            {visibleTeams.map((team) => (
               <option key={team} value={team}>
                 {team}
               </option>
@@ -763,7 +772,7 @@ export default function CasesPage() {
               <button onClick={() => setIsTeamsModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
             </div>
 
-            <div className="flex gap-2">
+            {user?.role === 'ADMIN' && <div className="flex gap-2">
               <input
                 type="text"
                 value={newTeamInput}
@@ -777,18 +786,18 @@ export default function CasesPage() {
               >
                 Add Team
               </button>
-            </div>
+            </div>}
 
             <div className="max-h-60 overflow-y-auto space-y-2">
-              {teams.map((team) => (
+              {visibleTeams.map((team) => (
                 <div key={team} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                   <span className="font-bold text-sm text-primary">{team}</span>
-                  <button
+                  {user?.role === 'ADMIN' && <button
                     onClick={() => handleRemoveTeam(team)}
                     className="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1 bg-red-50 rounded-lg"
                   >
                     Remove
-                  </button>
+                  </button>}
                 </div>
               ))}
             </div>
@@ -981,7 +990,7 @@ export default function CasesPage() {
       )}
 
       {/* Full Page Dedicated Team Directory Register */}
-      {activeTeamDirectoryModal && (
+      {activeTeamDirectoryModal && (!isLawyer || activeTeamDirectoryModal === assignedTeam) && (
         <div className="fixed inset-0 bg-[#f8fafc] z-50 overflow-y-auto p-4 md:p-8 lg:p-10 space-y-8 animate-in fade-in duration-200">
           <div className="w-full max-w-[98%] mx-auto space-y-8 pb-20">
             {/* Top Navigation & Header Bar */}
@@ -1018,8 +1027,8 @@ export default function CasesPage() {
                 {(() => {
                   const teamCases = cases.filter((c) => {
                     const ov = overrides[c.id] || {};
-                    const teamName = ov.litigationTeam || c.litigationTeam || 'TEAM ANCHOR';
-                    if (teamName !== activeTeamDirectoryModal) return false;
+                    const teamName = isLawyer ? c.litigationTeam || '' : ov.litigationTeam || c.litigationTeam || '';
+                    if (teamName.trim().toUpperCase() !== activeTeamDirectoryModal.toUpperCase()) return false;
                     if (!isItemInMonth(c.createdAt, teamDirectoryMonth)) return false;
                     if (teamDirectoryQuery.trim()) {
                       const q = teamDirectoryQuery.trim().toLowerCase();
@@ -1119,8 +1128,8 @@ export default function CasesPage() {
             {(() => {
               const teamCases = cases.filter((c) => {
                 const ov = overrides[c.id] || {};
-                const teamName = ov.litigationTeam || c.litigationTeam || 'TEAM ANCHOR';
-                if (teamName !== activeTeamDirectoryModal) return false;
+                const teamName = isLawyer ? c.litigationTeam || '' : ov.litigationTeam || c.litigationTeam || '';
+                if (teamName.trim().toUpperCase() !== activeTeamDirectoryModal.toUpperCase()) return false;
 
                 if (!isItemInMonth(c.createdAt, teamDirectoryMonth)) {
                   return false;

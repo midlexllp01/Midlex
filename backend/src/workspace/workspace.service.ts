@@ -359,14 +359,14 @@ export class WorkspaceService implements OnModuleInit {
     const access = this.access(user, project, row.access);
     let legacy = await this.db.user.findUnique({ where: { email: user.email } });
     if (!legacy) legacy = await this.db.user.create({ data: { name: user.name, email: user.email, role: 'LAWYER', password: await bcrypt.hash(randomBytes(32).toString('hex'), 10), litigationTeam: user.litigationTeam || null } });
-    else if (user.litigationTeam && legacy.litigationTeam !== user.litigationTeam) legacy = await this.db.user.update({ where: { id: legacy.id }, data: { litigationTeam: user.litigationTeam, department: 'LITIGATION' } });
+    else if (legacy.litigationTeam !== (user.litigationTeam || null)) legacy = await this.db.user.update({ where: { id: legacy.id }, data: { litigationTeam: user.litigationTeam || null, department: 'LITIGATION' } });
     const token = this.sign({ sub: user.id, kind: 'project', project, access, version: user.version, accessVersion: user.accessVersion || 1, legacyId: legacy.id });
-    return { token, user: this.projectUser(user, legacy.id, project, access, legacy.litigationTeam), access, project, workspaceUrl: row.workspaceUrl || 'https://developer.midlex.xyz', path: project === 'realty' && access === 'ADMIN' ? '/admin' : ['cbt', 'mip'].includes(project) && access === 'ADMIN' ? '/dashboard/admin' : PROJECTS.find(p => p.id === project)!.path };
+    return { token, user: this.projectUser(user, legacy.id, project, access), access, project, workspaceUrl: row.workspaceUrl || 'https://developer.midlex.xyz', path: project === 'realty' && access === 'ADMIN' ? '/admin' : ['cbt', 'mip'].includes(project) && access === 'ADMIN' ? '/dashboard/admin' : PROJECTS.find(p => p.id === project)!.path };
   }
 
-  private projectUser(user: any, id: string, project: string, access: Access, legacyTeam?: string | null) {
+  private projectUser(user: any, id: string, project: string, access: Access) {
     const role = access === 'ADMIN' ? 'ADMIN' : project === 'finance' ? 'ACCOUNTANT' : 'LAWYER';
-    return { id, workspaceId: user.id, email: user.email, name: user.name, role, litigationTeam: user.litigationTeam || legacyTeam || null, status: 'ACTIVE', createdAt: user.createdAt };
+    return { id, workspaceId: user.id, email: user.email, name: user.name, role, litigationTeam: user.litigationTeam || null, status: 'ACTIVE', createdAt: user.createdAt };
   }
 
   async inspect(token: string, project?: string) {
@@ -374,8 +374,7 @@ export class WorkspaceService implements OnModuleInit {
     if (project && payload.project !== project) throw new ForbiddenException('This session belongs to another project');
     const access = this.access(user, payload.project, payload.access);
     if (payload.access !== access) throw new UnauthorizedException('Project access has changed');
-    const legacy = await this.db.user.findUnique({ where: { id: payload.legacyId } });
-    return { user: this.projectUser(user, payload.legacyId, payload.project, access, legacy?.litigationTeam), access, project: payload.project };
+    return { user: this.projectUser(user, payload.legacyId, payload.project, access), access, project: payload.project };
   }
 
   private audit(actorId: string, action: string, target: string) { return this.db.workspaceAudit.create({ data: { actorId, action, target } }); }
