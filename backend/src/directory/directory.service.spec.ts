@@ -10,8 +10,10 @@ describe('Litigation team assignments', () => {
     directory = { id: 'settings', teams: ['TEAM ANCHOR', 'RETAINER ADVISORY TEAM'], courts: [] };
     db = {
       directory: { findUnique: jest.fn().mockImplementation(async () => directory), update: jest.fn().mockImplementation(async ({ data }) => { directory = { ...directory, ...data }; return directory; }) },
-      workspaceUser: { findMany: jest.fn().mockResolvedValue([approved, { ...approved, id: 'unapproved', grants: {} }, { ...approved, id: 'suspended', active: false }]), findUnique: jest.fn().mockResolvedValue(approved) },
-      user: { findUnique: jest.fn().mockResolvedValue({ id: 'legacy', email: approved.email }), update: jest.fn() },
+      workspaceUser: { findMany: jest.fn().mockResolvedValue([approved, { ...approved, id: 'unapproved', grants: {} }, { ...approved, id: 'suspended', active: false }, { ...approved, id: 'developer', role: 'DEVELOPER', grants: {} }]), findUnique: jest.fn().mockResolvedValue(approved) },
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'legacy', email: approved.email }), update: jest.fn(), updateMany: jest.fn() },
+      case: { updateMany: jest.fn() },
+      message: { updateMany: jest.fn() },
       mutateWorkspaceUser: jest.fn().mockImplementation(async (_id, change) => ({ ...approved, ...change(approved) })),
     };
     service = new DirectoryService(db);
@@ -42,5 +44,19 @@ describe('Litigation team assignments', () => {
   it('rejects an unknown team before saving membership', async () => {
     await expect(service.assignLitigationLawyer(approved.id, 'UNKNOWN')).rejects.toThrow('existing litigation team');
     expect(db.mutateWorkspaceUser).not.toHaveBeenCalled();
+  });
+
+  it('renames a team and carries its membership, cases, and messages forward', async () => {
+    expect(await service.renameLitigationTeam('TEAM ANCHOR', 'TEAM BRAVO')).toContain('TEAM BRAVO');
+    expect(db.mutateWorkspaceUser).toHaveBeenCalled();
+    expect(db.user.updateMany).toHaveBeenCalledWith({ where: { litigationTeam: 'TEAM ANCHOR' }, data: { litigationTeam: 'TEAM BRAVO' } });
+    expect(db.case.updateMany).toHaveBeenCalledWith({ where: { litigationTeam: 'TEAM ANCHOR' }, data: { litigationTeam: 'TEAM BRAVO' } });
+    expect(db.message.updateMany).toHaveBeenCalledWith({ where: { teamName: 'TEAM ANCHOR' }, data: { teamName: 'TEAM BRAVO' } });
+  });
+
+  it('deletes a team without deleting its users or cases', async () => {
+    expect(await service.deleteLitigationTeam('TEAM ANCHOR')).not.toContain('TEAM ANCHOR');
+    expect(db.user.updateMany).toHaveBeenCalledWith({ where: { litigationTeam: 'TEAM ANCHOR' }, data: { litigationTeam: null } });
+    expect(db.case.updateMany).toHaveBeenCalledWith({ where: { litigationTeam: 'TEAM ANCHOR' }, data: { litigationTeam: null } });
   });
 });

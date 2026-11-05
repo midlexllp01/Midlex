@@ -61,6 +61,20 @@ export class DirectoryController {
   @Roles(Role.ADMIN)
   async assignLitigationLawyer(@Param('id') id: string, @Body('team') team: string) { return this.directoryService.assignLitigationLawyer(id, team); }
 
+  @Patch('litigation-teams/:name')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async renameLitigationTeam(@Param('name') name: string, @Body('name') nextName: string) {
+    return this.directoryService.renameLitigationTeam(name, nextName);
+  }
+
+  @Delete('litigation-teams/:name')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async deleteLitigationTeam(@Param('name') name: string) {
+    return this.directoryService.deleteLitigationTeam(name);
+  }
+
   @Post('teams')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
