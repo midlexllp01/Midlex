@@ -1,5 +1,6 @@
 "use client";
 import Brand from "./Brand";
+import ManageAccount from "./ManageAccount";
 import WorkspaceChat from "./WorkspaceChat";
 import ChatErrorBoundary from "./ChatErrorBoundary";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -26,6 +27,7 @@ import {
   SlidersHorizontal,
   Smartphone,
   Trash2,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -35,6 +37,8 @@ type Person = {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  jobTitle?: string;
   role: string;
   active: boolean;
   mustChangePassword: boolean;
@@ -441,6 +445,7 @@ export default function Workspace({ role }: { role: string }) {
               ? [{ id: "activity", name: "Activity log", icon: Activity }]
               : []),
             { id: "chat", name: "Chat", icon: MessageCircle },
+            { id: "account", name: "Manage Account", icon: UserRound },
           ].map((item) => (
             <button
               key={item.id}
@@ -466,8 +471,8 @@ export default function Workspace({ role }: { role: string }) {
           </div>
           <button
             className="profile"
-            onClick={() => setPasswordOpen(true)}
-            title="Change password"
+            onClick={() => setTab("account")}
+            title="Manage Account"
           >
             <span className="avatar">
               {data.user.name.slice(0, 2).toUpperCase()}
@@ -494,6 +499,8 @@ export default function Workspace({ role }: { role: string }) {
                   ? "Activity log"
                   : tab === "chat"
                     ? "Chat"
+                  : tab === "account"
+                    ? "Manage Account"
                   : tab === "projects"
                     ? "My projects"
                     : "Overview"}
@@ -503,32 +510,14 @@ export default function Workspace({ role }: { role: string }) {
             <span />
             Secure session
           </span>
-          <button
-            className="secondary compact"
-            onClick={() => {
-              setError("");
-              setPasswordOpen(true);
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "0.8125rem",
-              padding: "6px 12px",
-              cursor: "pointer",
-              marginLeft: "auto",
-            }}
-          >
-            <LockKeyhole size={14} /> Change password
-          </button>
           <button className="secondary compact notification-button" type="button" title="Notifications" aria-label={unreadMessages > 0 ? `${unreadMessages} unread messages` : "Open notifications"} onClick={() => setTab('chat')}>
             <Bell size={16} />
             {unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
           </button>
           <div className="mobile-account">
             <button
-              aria-label="Change password"
-              onClick={() => setPasswordOpen(true)}
+              aria-label="Manage Account"
+              onClick={() => setTab("account")}
             >
               <LockKeyhole size={16} />
             </button>
@@ -559,6 +548,8 @@ export default function Workspace({ role }: { role: string }) {
                       ? "A record of what matters."
                   : tab === "chat"
                     ? "Workspace chat"
+                  : tab === "account"
+                    ? "Your account, your details."
                       : details.title}
               </h1>
               <p>
@@ -568,10 +559,12 @@ export default function Workspace({ role }: { role: string }) {
                     ? "Sign-ins, onboarding and permission changes across your workspace."
                   : tab === "chat"
                     ? "Private messages and broadcasts in one inbox."
+                  : tab === "account"
+                    ? "Update your profile and keep your sign-in secure."
                     : details.subtitle}
               </p>
             </div>
-            {canManageUsers && (
+            {canManageUsers && tab !== "account" && (
               <button
                 className="primary compact"
                 onClick={() => {
@@ -602,6 +595,7 @@ export default function Workspace({ role }: { role: string }) {
               </button>
             </div>
           )}
+          {tab === "account" && <ManageAccount user={data.user} onSaved={user => setData(current => current ? { ...current, user: { ...current.user, ...user } } : current)} onPassword={() => { setError(""); setPasswordOpen(true); }} />}
           {tab === "chat" && <ChatErrorBoundary><WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} onUnreadChange={setUnreadMessages} /></ChatErrorBoundary>}
           {tab === "overview" && (
             <>

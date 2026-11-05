@@ -112,7 +112,7 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   safe(user: any) {
-    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, grants: user.grants || {}, createdAt: user.createdAt };
+    return { id: user.id, name: user.name, email: user.email, phone: user.phone || '', jobTitle: user.jobTitle || '', role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, grants: user.grants || {}, createdAt: user.createdAt };
   }
 
   private sign(payload: any) {
@@ -218,6 +218,21 @@ export class WorkspaceService implements OnModuleInit {
     await this.db.workspaceUser.delete({ where: { id } });
     await this.audit(actor.id, 'USER_DELETED', id);
     return { ok: true, deletedId: id };
+  }
+
+  async updateAccount(user: any, body: any) {
+    const name = typeof body?.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+    const jobTitle = typeof body?.jobTitle === 'string' ? body.jobTitle.trim() : '';
+    if (name.length < 2 || name.length > 120) throw new BadRequestException('Full name must be between 2 and 120 characters');
+    if (phone.length > 30 || (phone && !/^[+()\d\s.-]+$/.test(phone))) throw new BadRequestException('Enter a valid phone number');
+    if (jobTitle.length > 100) throw new BadRequestException('Job title must be 100 characters or less');
+    const updated = await this.db.mutateWorkspaceUser(user.id, current => {
+      if (current.version !== user.version || !current.active) throw new UnauthorizedException('Session changed. Sign in again.');
+      return { name, phone, jobTitle };
+    });
+    await this.audit(user.id, 'ACCOUNT_UPDATED', user.id);
+    return { user: this.safe(updated) };
   }
 
   async changePassword(user: any, body: any) {
