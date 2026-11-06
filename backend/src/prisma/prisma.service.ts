@@ -6,7 +6,6 @@ import { getStorage } from 'firebase-admin/storage';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as bcrypt from 'bcrypt';
 
 type ModelName =
   | 'user'
@@ -171,7 +170,6 @@ export class PrismaService implements OnModuleInit {
         console.log('[PrismaService] Running in OFFLINE local JSON database mode.');
       }
     }
-    await this.seedDefaultUsers();
   }
 
   private async initPostgres() {
@@ -224,87 +222,6 @@ export class PrismaService implements OnModuleInit {
       if (process.env.NODE_ENV === 'production') throw err;
       this.isPostgres = false;
       this.isOffline = true;
-    }
-  }
-
-  private async seedDefaultUsers() {
-    try {
-      const defaultUsers = [
-        {
-          email: 'abeddybaba@gmail.com',
-          name: 'Super Admin',
-          password: 'Abeddy9498#',
-          role: 'ADMIN',
-        },
-        {
-          email: 'midlexllp01@gmail.com',
-          name: 'Super Admin (Legacy)',
-          password: 'Admin@123',
-          role: 'ADMIN',
-        },
-        {
-          email: 'lawyer1@midlex.com',
-          name: 'Barr. Adebayo',
-          password: 'admin123',
-          role: 'LAWYER',
-          phone: '08012345678',
-        },
-        {
-          email: 'samson@midlex.com',
-          name: 'Samson Sabbat',
-          password: 'samson123',
-          role: 'LAWYER',
-          phone: '08022223333',
-        },
-        {
-          email: 'accountant@midlex.com',
-          name: 'Chief Accountant (Finance)',
-          password: 'accountant123',
-          role: 'ACCOUNTANT',
-          phone: '08098765432',
-        },
-        {
-          email: 'client@midlex.com',
-          name: 'Demo Client (John Doe)',
-          password: 'client123',
-          role: 'CLIENT',
-          phone: '08033334444',
-        },
-        {
-          email: 'user@midlex.com',
-          name: 'Standard User (Jane Doe)',
-          password: 'user123',
-          role: 'CLIENT',
-          phone: '08055556666',
-        },
-      ];
-
-      for (const u of defaultUsers) {
-        const normalizedEmail = u.email.trim().toLowerCase();
-        const existing = await this.findUnique('user', { where: { email: normalizedEmail } });
-        const hashedPassword = await bcrypt.hash(u.password, 10);
-
-        if (!existing) {
-          await this.create('user', {
-            data: {
-              email: normalizedEmail,
-              name: u.name,
-              password: hashedPassword,
-              role: u.role,
-              phone: u.phone || null,
-            },
-          });
-          console.log(`[PrismaService] Auto-seeded default user: ${normalizedEmail}`);
-        } else {
-          await this.update('user', {
-            where: { id: existing.id },
-            data: { password: hashedPassword, role: u.role, name: u.name },
-          });
-          console.log(`[PrismaService] Updated credentials for default user: ${normalizedEmail}`);
-        }
-      }
-    } catch (err) {
-      console.warn('[PrismaService] Auto-seed default users error:', err);
     }
   }
 
