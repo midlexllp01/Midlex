@@ -551,6 +551,7 @@ export default function Workspace({ role }: { role: string }) {
               <item.icon size={18} />
               {item.name}
               {item.id === "projects" && <span>{data.projects.length}</span>}
+              {item.id === "people" && <span>{people.length}</span>}
               {item.id === "chat" && unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
             </button>
           ))}
