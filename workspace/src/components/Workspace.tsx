@@ -459,6 +459,7 @@ export default function Workspace({ role }: { role: string }) {
               <item.icon size={18} />
               {item.name}
               {item.id === "projects" && <span>{data.projects.length}</span>}
+              {item.id === "people" && <span>{people.length}</span>}
               {item.id === "chat" && unreadMessages > 0 && <span className="unread-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
             </button>
           ))}
@@ -1118,7 +1119,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required={editor === "new"}
                   placeholder={
                     editor !== "new" ? "Leave blank to preserve password" : ""
@@ -1126,8 +1127,8 @@ export default function Workspace({ role }: { role: string }) {
                 />
                 <small>
                   {editor === "new"
-                    ? "At least 6 characters. They will choose a new password on first sign-in."
-                    : "Enter at least 12 characters only if you wish to reset their password."}
+                    ? "At least 8 characters. They will choose a new password on first sign-in."
+                    : "Enter at least 8 characters only if you wish to reset their password."}
                 </small>
               </label>
               <div className="form-row">
@@ -1350,7 +1351,7 @@ export default function Workspace({ role }: { role: string }) {
                 </button>
               )}
             </header>
-            <p>Choose a password of at least 12 characters to continue.</p>
+            <p>Choose a password of at least 8 characters to continue.</p>
             <form onSubmit={password}>
               {error && (
                 <div className="notice error" role="alert">
@@ -1373,7 +1374,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required
                 />
               </label>
@@ -1383,7 +1384,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="confirm"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required
                 />
               </label>
