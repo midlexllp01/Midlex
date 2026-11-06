@@ -34,6 +34,11 @@
 .chat-new-button:hover { background: #154b3e; }
 .chat-notice { margin: 10px 14px; padding: 10px; border-radius: 8px; color: #17533a; background: #eaf5eb; font-size: 12px; }
 .chat-list, .chat-people { overflow-y: auto; flex: 1; }
+.chat-inbox-content { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; }
+.chat-section-title { display: flex; align-items: center; gap: 7px; margin: 0; padding: 14px 16px 8px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.chat-section-title span { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: #eaf2e6; color: var(--green); font-size: 10px; letter-spacing: 0; }
+.chat-inbox-content .chat-list, .chat-inbox-people { flex: none; overflow: visible; }
+.chat-inbox-search { flex: none; margin: 4px 14px 8px; }
 .chat-list-item, .chat-people button { width: 100%; display: flex; align-items: center; gap: 11px; padding: 13px 14px; border-bottom: 1px solid #edf0ed; color: var(--ink); background: #fff; text-align: left; }
 .chat-list-item:hover, .chat-list-item.active, .chat-people button:hover { background: #f1f7f2; }
 .chat-avatar { display: inline-flex; justify-content: center; align-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; background: #e7efe6; color: var(--green); font-size: 13px; font-weight: 700; }
