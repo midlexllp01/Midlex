@@ -283,10 +283,7 @@ export default function Workspace({ role }: { role: string }) {
     `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()),
   );
   const canEditPerson = (person: Person) => person.role !== "DEVELOPER" &&
-    (developer || (person.role === "STAFF" && Object.entries(person.grants || {}).every(([id, access]) => {
-      const own = data.projects.find(project => project.id === id)?.access;
-      return own === "BOTH" || own === access;
-    })));
+    (developer || person.role === "STAFF");
   const needsPassword = data.user.mustChangePassword || passwordOpen;
   async function toggleRolePrivileges(person: Person) {
     if (!data) return;
@@ -1131,7 +1128,7 @@ export default function Workspace({ role }: { role: string }) {
                 />
                 <small>
                   {editor === "new"
-                    ? "At least 6 characters. They will choose a new password on first sign-in."
+                    ? "At least 12 characters. They will choose a new password on first sign-in."
                     : "Enter at least 12 characters only if you wish to reset their password."}
                 </small>
               </label>
@@ -1254,7 +1251,7 @@ export default function Workspace({ role }: { role: string }) {
                       setSelectedRole("STAFF");
                       const next: Record<string, Access> = {};
                       data.projects.forEach((p) => {
-                        if (developer || p.access !== "ADMIN") next[p.id] = "USER";
+                        next[p.id] = "USER";
                       });
                       setGrants(next);
                     }}
@@ -1296,11 +1293,11 @@ export default function Workspace({ role }: { role: string }) {
                       }}
                     >
                       <option value="">No access</option>
-                      {project.id !== "legal-admin" && (developer || project.access !== "ADMIN") && (
+                      {project.id !== "legal-admin" && (
                         <option value="USER">User</option>
                       )}
-                      {(developer || project.access !== "USER") && <option value="ADMIN">Admin</option>}
-                      {project.id !== "legal-admin" && (developer || project.access === "BOTH") && (
+                      <option value="ADMIN">Admin</option>
+                      {project.id !== "legal-admin" && (
                         <option value="BOTH">Admin + user</option>
                       )}
                     </select>

@@ -186,7 +186,9 @@ export class WorkspaceService implements OnModuleInit {
 
   private managedGrants(actor: any, grants: any) {
     const validated = this.validateGrants(grants);
-    if (actor.role === 'DEVELOPER') return validated;
+    // Workspace admins may grant any project profile to staff accounts. Only
+    // the developer may create/promote workspace admins or manage identities.
+    if (actor.role === 'DEVELOPER' || actor.role === 'ADMIN') return validated;
     for (const [project, access] of Object.entries(validated)) {
       const ownAccess = actor.grants?.[project];
       if (!ownAccess || ownAccess !== 'BOTH' && access !== ownAccess) {
