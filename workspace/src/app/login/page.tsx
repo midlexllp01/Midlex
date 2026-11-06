@@ -6,6 +6,17 @@ import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'luc
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#4285F4" d="M21.35 12.25c0-.76-.07-1.48-.2-2.18H12v4.13h5.23a4.48 4.48 0 0 1-1.94 2.94v2.44h3.14c1.84-1.7 2.92-4.2 2.92-7.33Z" />
+      <path fill="#34A853" d="M12 21.75c2.63 0 4.84-.87 6.45-2.35l-3.14-2.44c-.87.59-1.98.94-3.31.94-2.54 0-4.69-1.71-5.46-4H3.3v2.52A9.75 9.75 0 0 0 12 21.75Z" />
+      <path fill="#FBBC05" d="M6.54 13.85a5.86 5.86 0 0 1 0-3.7V7.63H3.3a9.76 9.76 0 0 0 0 8.74l3.24-2.52Z" />
+      <path fill="#EA4335" d="M12 6.15c1.43 0 2.72.49 3.73 1.46l2.8-2.8A9.35 9.35 0 0 0 12 2.25a9.75 9.75 0 0 0-8.7 5.38l3.24 2.52c.77-2.29 2.92-4 5.46-4Z" />
+    </svg>
+  );
+}
+
 export default function Login() {
   const router = useRouter();
   const [error, setError] = useState('');
@@ -161,8 +172,6 @@ export default function Login() {
           <span className="eyebrow">{roleMeta.caption}</span>
           <h2>Sign in to {roleMeta.label}</h2>
           <p>{roleMeta.formSubtitle}</p>
-          <button type="button" className="secondary" onClick={() => void googleSubmit()} disabled={busy}>Continue with Google</button>
-          <div className="login-divider"><span>or use workspace password</span></div>
           <form onSubmit={submit}>
             <label>
               Work email
@@ -178,6 +187,11 @@ export default function Login() {
               <ArrowRight size={18} />
             </button>
           </form>
+          <div className="login-divider"><span>or continue with Google</span></div>
+          <button type="button" className="secondary login-google-button" onClick={() => void googleSubmit()} disabled={busy}>
+            <GoogleMark />
+            Continue with Google
+          </button>
           <div className="login-note">
             <ShieldCheck size={19} />
             <span>
