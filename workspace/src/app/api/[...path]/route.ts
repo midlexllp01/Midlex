@@ -37,7 +37,13 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       ...(request.method !== 'GET' ? { body: await request.text() } : {}),
     });
     const data = await upstream.json();
-    const { token: issuedToken, ...publicData } = data;
+    const isObject = data !== null && typeof data === 'object' && !Array.isArray(data);
+    const issuedToken = isObject ? data.token : undefined;
+    const publicData = Array.isArray(data)
+      ? data
+      : isObject
+        ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'token'))
+        : data;
     const response = NextResponse.json(publicData, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } });
 
     const renewedToken = ['login', 'google', 'password'].includes(path) ? issuedToken : token;
