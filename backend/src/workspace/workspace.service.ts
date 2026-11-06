@@ -180,9 +180,33 @@ export class WorkspaceService implements OnModuleInit {
 
   developer(user: any) { if (user.role !== 'DEVELOPER') throw new ForbiddenException('Only the developer can manage identities and project access'); }
 
+  private manager(user: any) {
+    if (user.role !== 'DEVELOPER' && user.role !== 'ADMIN') throw new ForbiddenException('Only workspace admins and the developer can manage staff');
+  }
+
+  private managedGrants(actor: any, grants: any) {
+    const validated = this.validateGrants(grants);
+    if (actor.role === 'DEVELOPER') return validated;
+    for (const [project, access] of Object.entries(validated)) {
+      const ownAccess = actor.grants?.[project];
+      if (!ownAccess || ownAccess !== 'BOTH' && access !== ownAccess) {
+        throw new ForbiddenException('You can only assign project access that you hold yourself');
+      }
+    }
+    return validated;
+  }
+
+  private manageableStaff(actor: any, target: any) {
+    if (actor.role === 'DEVELOPER') return;
+    if (target.role !== 'STAFF') throw new ForbiddenException('Workspace admins can only manage staff');
+    this.managedGrants(actor, target.grants || {});
+  }
+
   async overview(user: any) {
     const projects = PROJECTS.filter(p => user.role === 'DEVELOPER' || user.grants?.[p.id]).map(p => ({ ...p, access: user.role === 'DEVELOPER' ? 'BOTH' : user.grants[p.id] }));
-    return { user: this.safe(user), projects, ...(user.role === 'DEVELOPER' ? { users: (await this.db.workspaceUser.findMany()).map(u => this.safe(u)), audit: await this.db.workspaceAudit.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }) } : {}) };
+    return { user: this.safe(user), projects,
+      ...(['DEVELOPER', 'ADMIN'].includes(user.role) ? { users: (await this.db.workspaceUser.findMany()).map(u => this.safe(u)) } : {}),
+      ...(user.role === 'DEVELOPER' ? { audit: await this.db.workspaceAudit.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }) } : {}) };
   }
 
   async projectUserCount(project: string, secret: string) {
@@ -211,34 +235,38 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   async onboard(actor: any, body: any) {
-    this.developer(actor);
+    this.manager(actor);
     const { name, email, password, role } = body;
     if (typeof name !== 'string' || !name.trim() || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof password !== 'string' || password.length < 12 || !['ADMIN', 'STAFF'].includes(role)) throw new BadRequestException('Provide a name, valid email, 12-character temporary password, and admin or staff role');
+    if (actor.role === 'ADMIN' && role !== 'STAFF') throw new ForbiddenException('Workspace admins can only onboard staff');
     const normalized = email.trim().toLowerCase();
     if (await this.db.workspaceUser.findUnique({ where: { email: normalized } })) throw new BadRequestException('An account already exists for this email');
     if (body.active !== undefined && typeof body.active !== 'boolean') throw new BadRequestException('Invalid account status');
-    const user = await this.db.workspaceUser.create({ data: { name: name.trim(), email: normalized, password: await bcrypt.hash(password, 12), role, active: body.active ?? true, version: 1, mustChangePassword: true, grants: this.validateGrants(body.grants || {}) } });
+    const user = await this.db.workspaceUser.create({ data: { name: name.trim(), email: normalized, password: await bcrypt.hash(password, 12), role, active: body.active ?? true, version: 1, mustChangePassword: true, grants: this.managedGrants(actor, body.grants || {}) } });
     await this.audit(actor.id, 'USER_ONBOARDED', user.id);
     return this.safe(user);
   }
 
   async update(actor: any, id: string, body: any) {
-    this.developer(actor);
+    this.manager(actor);
     const target = await this.db.workspaceUser.findUnique({ where: { id } });
     if (!target || target.role === 'DEVELOPER') throw new ForbiddenException('The owner account cannot be changed here');
+    this.manageableStaff(actor, target);
     if (body.role !== undefined && !['ADMIN', 'STAFF'].includes(body.role)) throw new BadRequestException('Invalid workspace role');
+    if (actor.role === 'ADMIN' && body.role !== undefined && body.role !== 'STAFF') throw new ForbiddenException('Workspace admins cannot promote staff to workspace admin');
     if (body.active !== undefined && typeof body.active !== 'boolean') throw new BadRequestException('Invalid account status');
     if (body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 12)) throw new BadRequestException('Temporary password must contain at least 12 characters');
-    const changes = { ...(body.role ? { role: body.role } : {}), ...(body.active !== undefined ? { active: body.active } : {}), ...(body.grants !== undefined ? { grants: this.validateGrants(body.grants) } : {}), ...(body.password ? { password: await bcrypt.hash(body.password, 12), mustChangePassword: true } : {}) };
+    const changes = { ...(body.role ? { role: body.role } : {}), ...(body.active !== undefined ? { active: body.active } : {}), ...(body.grants !== undefined ? { grants: this.managedGrants(actor, body.grants) } : {}), ...(body.password ? { password: await bcrypt.hash(body.password, 12), mustChangePassword: true } : {}) };
     const user = await this.db.mutateWorkspaceUser(id, current => ({ ...changes, version: current.version + (body.password || body.active !== undefined && body.active !== current.active ? 1 : 0), accessVersion: (current.accessVersion || 1) + 1 }));
     await this.audit(actor.id, 'ACCESS_UPDATED', id);
     return this.safe(user);
   }
 
   async delete(actor: any, id: string) {
-    this.developer(actor);
+    this.manager(actor);
     const target = await this.db.workspaceUser.findUnique({ where: { id } });
     if (!target || target.role === 'DEVELOPER') throw new ForbiddenException('The owner account cannot be deleted');
+    this.manageableStaff(actor, target);
     await this.db.workspaceUser.delete({ where: { id } });
     await this.audit(actor.id, 'USER_DELETED', id);
     return { ok: true, deletedId: id };

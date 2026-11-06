@@ -89,12 +89,19 @@ describe('Workspace access and project SSO', () => {
   it('rejects login for an account that was never provisioned', async () => {
     await expect(service.login('unknown@example.com', 'any-password', 'test')).rejects.toThrow('Invalid email or password');
   });
-  it('does not grant admins implicit project access or onboarding authority', async () => {
+  it('shares the staff roster with admins while limiting their onboarding and access grants', async () => {
     const admin = { ...member, role: 'ADMIN', grants: {} };
     expect((await service.overview(admin)).projects).toHaveLength(0);
-    await expect(service.onboard(admin, {})).rejects.toThrow('Only the developer');
-    await expect(service.update(admin, member.id, { grants: { cbt: 'ADMIN' } })).rejects.toThrow('Only the developer');
+    expect((await service.overview(admin)).users).toEqual(expect.arrayContaining([expect.objectContaining({ id: member.id }), expect.objectContaining({ id: owner.id })]));
+    await expect(service.onboard(admin, { name: 'Staff', email: 'new@example.com', password: 'temporary-secret-123', role: 'ADMIN' })).rejects.toThrow('only onboard staff');
+    await expect(service.onboard(admin, { name: 'Staff', email: 'new@example.com', password: 'temporary-secret-123', role: 'STAFF', grants: { cbt: 'ADMIN' } })).rejects.toThrow('access that you hold');
+    await expect(service.update(admin, member.id, { grants: { cbt: 'ADMIN' } })).rejects.toThrow('access that you hold');
     await expect(service.launch(admin, 'cbt')).rejects.toThrow('do not have access');
+    const grantedAdmin = { ...admin, grants: { cbt: 'ADMIN' } };
+    const created = await service.onboard(grantedAdmin, { name: 'New Staff', email: 'new@example.com', password: 'temporary-secret-123', role: 'STAFF', grants: { cbt: 'ADMIN' } });
+    expect((await service.overview(owner)).users).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    await expect(service.update(grantedAdmin, created.id, { role: 'ADMIN' })).rejects.toThrow('cannot promote');
+    await expect(service.delete(grantedAdmin, owner.id)).rejects.toThrow('owner account');
   });
   it('onboards accounts with hashed passwords, denies self-selected developer roles, and rejects unknown grants', async () => {
     await expect(service.onboard(owner, { name: 'Someone', email: 'new@example.com', password: 'temporary-secret-123', role: 'DEVELOPER' })).rejects.toThrow();
