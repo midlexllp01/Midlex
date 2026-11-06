@@ -1,49 +1,268 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { MessageCircle, Send, X } from 'lucide-react';
+
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { ArrowLeft, Megaphone, MessageCircle, Plus, Search, Send } from 'lucide-react';
 
 type Person = { id: string; name: string; email: string; role: string };
-type Message = { id: string; senderId: string; content: string; createdAt: string; sender?: Person };
-type Conversation = { id: string; otherUser: Person; messages: Message[] };
-type Broadcast = { id: string; recipientId: string; subject: string; content: string; createdAt: string; sender: Person; readAt?: string | null; repliedConversationId?: string | null };
+type Message = { id: string; senderId: string; content: string; createdAt: string; readAt: string | null; sender: Person };
+type Broadcast = { id: string; recipientId: string; subject: string; content: string; createdAt: string; sender: Person; readAt: string | null; repliedConversationId: string | null };
+type Conversation = { id: string; type: string; broadcastId: string | null; broadcast: Broadcast | null; otherUser: Person; messages: Message[] };
+type Inbox = { unread: number; broadcasts: Broadcast[]; conversations: Conversation[] };
+type Active = { kind: 'conversation' | 'broadcast'; id: string } | null;
+
+const emptyInbox: Inbox = { unread: 0, broadcasts: [], conversations: [] };
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function str(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function person(value: unknown): Person {
+  const item = record(value);
+  return { id: str(item.id), name: str(item.name) || str(item.email) || 'Workspace user', email: str(item.email), role: str(item.role) };
+}
+
+function message(value: unknown): Message {
+  const item = record(value);
+  return { id: str(item.id), senderId: str(item.senderId), content: str(item.content), createdAt: str(item.createdAt), readAt: str(item.readAt) || null, sender: person(item.sender) };
+}
+
+function broadcast(value: unknown): Broadcast {
+  const item = record(value);
+  return { id: str(item.id), recipientId: str(item.recipientId), subject: str(item.subject), content: str(item.content), createdAt: str(item.createdAt), sender: person(item.sender), readAt: str(item.readAt) || null, repliedConversationId: str(item.repliedConversationId) || null };
+}
+
+function normalizeInbox(value: unknown): Inbox {
+  const item = record(value);
+  if (!Array.isArray(item.broadcasts) || !Array.isArray(item.conversations)) throw new Error('The workspace inbox returned an unexpected response.');
+  return {
+    unread: Math.max(0, Number(item.unread) || 0),
+    broadcasts: item.broadcasts.map(broadcast),
+    conversations: item.conversations.map((value: unknown) => {
+      const row = record(value);
+      return { id: str(row.id), type: str(row.type), broadcastId: str(row.broadcastId) || null, broadcast: row.broadcast ? broadcast(row.broadcast) : null, otherUser: person(row.otherUser), messages: Array.isArray(row.messages) ? row.messages.map(message) : [] };
+    }),
+  };
+}
 
 async function request(path: string, method = 'GET', body?: unknown) {
   const response = await fetch(`/api/${path}`, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Chat request failed'); return data;
+  const data = await response.json();
+  if (!response.ok) throw new Error(typeof data.message === 'string' ? data.message : 'Chat request failed');
+  return data;
 }
 
-export default function WorkspaceChat({ canManage, currentUserId, autoOpen = false }: { canManage: boolean; currentUserId: string; autoOpen?: boolean }) {
-  const [open, setOpen] = useState(false); const [inbox, setInbox] = useState<any>({ broadcasts: [], conversations: [], unread: 0 });
-  const [recipients, setRecipients] = useState<Person[]>([]); const [selected, setSelected] = useState(''); const [conversation, setConversation] = useState<Conversation | null>(null); const [replyBroadcastId, setReplyBroadcastId] = useState('');
-  const [subject, setSubject] = useState(''); const [content, setContent] = useState(''); const [broadcast, setBroadcast] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  async function refresh() { try { setInbox(await request('chat/inbox')); if (canManage) setRecipients(await request('chat/recipients')); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load messages'); } }
-  useEffect(() => { if (autoOpen) setOpen(true); void refresh(); const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer); }, [canManage, autoOpen]);
-  async function submit() {
-    setBusy(true); setError('');
-    try {
-      if (broadcast) await request('chat/broadcasts', 'POST', { subject, content, userIds: selected === 'all' ? [] : [selected] });
-      else if (!conversation) await request('chat/conversations', 'POST', { userId: selected, content });
-      else if (replyBroadcastId) await request(`chat/broadcasts/${replyBroadcastId}/reply`, 'POST', { content });
-      else await request(`chat/${conversation.id}/messages`, 'POST', { content });
-      setSubject(''); setContent(''); setSelected(''); setConversation(null); setReplyBroadcastId(''); await refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to send message'); } finally { setBusy(false); }
+function time(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(date);
+}
+
+function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || '?';
+}
+
+export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange }: { canManage: boolean; currentUserId: string; onUnreadChange?: (count: number) => void }) {
+  const [inbox, setInbox] = useState<Inbox>(emptyInbox);
+  const [recipients, setRecipients] = useState<Person[]>([]);
+  const [active, setActive] = useState<Active>(null);
+  const activeRef = useRef<Active>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const [mode, setMode] = useState<'inbox' | 'new' | 'broadcast'>('inbox');
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+  const [search, setSearch] = useState('');
+  const [subject, setSubject] = useState('');
+  const [content, setContent] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  function chooseActive(next: Active) {
+    activeRef.current = next;
+    setActive(next);
   }
-  const unread = inbox.unread || 0;
-  return <>
-    <button type="button" className="secondary compact" onClick={() => { setOpen(true); setError(''); void refresh(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, position: 'relative' }}><MessageCircle size={15}/> Messages{unread > 0 && <span className="badge admin-badge">{unread}</span>}</button>
-    {open && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="chat-title" style={{ maxWidth: 720 }}><header><div><span className="eyebrow">WORKSPACE INBOX</span><h2 id="chat-title">Messages</h2></div><button aria-label="Close messages" onClick={() => setOpen(false)}><X size={20}/></button></header>
-      {error && <div className="notice error" role="alert">{error}</div>}
-      {!conversation && <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
-        {inbox.broadcasts.map((item: Broadcast) => <button key={item.recipientId} type="button" className="grant-row" onClick={async () => { void request(`chat/broadcast-recipients/${item.recipientId}/read`, 'POST'); setSubject(`Re: ${item.subject}`); setContent(''); setSelected(''); setBroadcast(false); setReplyBroadcastId(item.repliedConversationId ? '' : item.id); const messages = item.repliedConversationId ? await request(`chat/${item.repliedConversationId}/messages`) : [{ id: item.id, senderId: item.sender.id, content: item.content, createdAt: item.createdAt, sender: item.sender }]; setConversation({ id: item.repliedConversationId || '', otherUser: item.sender, messages }); }}><span><strong>{item.subject}</strong><small>{item.sender.name} · {item.content}</small></span></button>)}
-        {inbox.conversations.map((item: Conversation) => <button key={item.id} type="button" className="grant-row" onClick={() => { setConversation(item); setBroadcast(false); setContent(''); }}><span><strong>{item.otherUser.name}</strong><small>{item.messages.at(-1)?.content || 'No messages yet'}</small></span></button>)}
-        {!inbox.broadcasts.length && !inbox.conversations.length && <p className="muted">No messages yet.</p>}
-      </div>}
-      {canManage && !conversation && <div style={{ display: 'flex', gap: 8, marginTop: 14 }}><button type="button" className="secondary-button" onClick={() => { setBroadcast(false); setConversation(null); }}>New private message</button><button type="button" className="secondary-button" onClick={() => { setBroadcast(true); setConversation(null); setSelected('all'); }}>Broadcast</button></div>}
-      {(canManage && !conversation || conversation) && <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
-        {canManage && !conversation && <select value={selected} onChange={e => setSelected(e.target.value)} aria-label="Recipient"><option value="">Choose recipient</option>{broadcast && <option value="all">All active users</option>}{recipients.map(person => <option key={person.id} value={person.id}>{person.name} ({person.email})</option>)}</select>}
-        {conversation && <><div style={{ display: 'flex', justifyContent: 'space-between' }}><strong>{conversation.otherUser.name}</strong><button type="button" className="text-button" onClick={() => { setConversation(null); setReplyBroadcastId(''); }}>Back</button></div><div style={{ maxHeight: 200, overflowY: 'auto' }}>{conversation.messages.map(message => <p key={message.id}><strong>{message.sender?.name || (message.senderId === currentUserId ? 'You' : 'User')}:</strong> {message.content}</p>)}</div></>}
-        <textarea value={content} onChange={e => setContent(e.target.value)} maxLength={4000} required placeholder={broadcast ? 'Broadcast message' : 'Write a message…'} rows={3}/><button type="button" className="primary compact" disabled={busy || !content.trim() || (canManage && !selected && !conversation)} onClick={() => void submit()}>{busy ? 'Sending…' : 'Send'}<Send size={15}/></button>
-      </div>}
-    </section></div>}
-  </>;
+
+  async function refresh(): Promise<Inbox | undefined> {
+    try {
+      let next = normalizeInbox(await request('chat/inbox'));
+      const open = activeRef.current;
+      if (open?.kind === 'conversation') {
+        const thread = next.conversations.find(item => item.id === open.id);
+        if (thread?.messages.some(item => item.senderId !== currentUserId && !item.readAt)) {
+          await request(`chat/${open.id}/read`, 'POST');
+          next = normalizeInbox(await request('chat/inbox'));
+        }
+      }
+      setInbox(next);
+      onUnreadChange?.(next.unread);
+      setError('');
+      return next;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load messages');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+    void request('chat/recipients').then(value => setRecipients(Array.isArray(value) ? value.map(person) : [])).catch(cause => setError(cause instanceof Error ? cause.message : 'Unable to load people'));
+    const timer = window.setInterval(() => { void refresh(); }, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function openConversation(item: Conversation) {
+    chooseActive({ kind: 'conversation', id: item.id });
+    setMode('inbox');
+    setContent('');
+    setNotice('');
+    try {
+      if (item.messages.some(row => row.senderId !== currentUserId && !row.readAt)) await request(`chat/${item.id}/read`, 'POST');
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to open chat'); }
+  }
+
+  async function openBroadcast(item: Broadcast) {
+    chooseActive({ kind: 'broadcast', id: item.recipientId });
+    setMode('inbox');
+    setContent('');
+    setNotice('');
+    try {
+      if (!item.readAt) await request(`chat/broadcast-recipients/${item.recipientId}/read`, 'POST');
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to open message'); }
+  }
+
+  function startNew() {
+    chooseActive(null);
+    setMode('new');
+    setSelectedPerson(null);
+    setSearch('');
+    setContent('');
+    setError('');
+    setNotice('');
+  }
+
+  function startBroadcast() {
+    chooseActive(null);
+    setMode('broadcast');
+    setSubject('');
+    setContent('');
+    setError('');
+    setNotice('');
+  }
+
+  function choosePerson(target: Person) {
+    const existing = inbox.conversations.find(item => item.type === 'DIRECT' && item.otherUser.id === target.id);
+    if (existing) { void openConversation(existing); return; }
+    setSelectedPerson(target);
+    setContent('');
+  }
+
+  async function send() {
+    if (!content.trim() || busy) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      if (mode === 'broadcast') {
+        if (!subject.trim()) { setError('Add a subject for the broadcast.'); return; }
+        const result = await request('chat/broadcasts', 'POST', { subject: subject.trim(), content: content.trim(), userIds: [] });
+        setNotice(`Broadcast sent privately to ${Number(result.recipientCount) || 0} people.`);
+        setMode('inbox');
+        setSubject('');
+      } else if (mode === 'new') {
+        if (!selectedPerson) { setError('Choose a person to message.'); return; }
+        const result = await request('chat/conversations', 'POST', { userId: selectedPerson.id, content: content.trim() });
+        chooseActive({ kind: 'conversation', id: str(result.id) });
+        setMode('inbox');
+        setSelectedPerson(null);
+      } else if (active?.kind === 'conversation') {
+        await request(`chat/${active.id}/messages`, 'POST', { content: content.trim() });
+      } else if (active?.kind === 'broadcast') {
+        const item = inbox.broadcasts.find(row => row.recipientId === active.id);
+        if (!item) throw new Error('This broadcast is no longer available.');
+        await request(`chat/broadcasts/${item.id}/reply`, 'POST', { content: content.trim() });
+        const next = await refresh();
+        const reply = next?.broadcasts.find(row => row.recipientId === item.recipientId)?.repliedConversationId;
+        if (reply) chooseActive({ kind: 'conversation', id: reply });
+      }
+      setContent('');
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to send message'); }
+    finally { setBusy(false); }
+  }
+
+  const threads = [
+    ...inbox.conversations.map(item => ({ kind: 'conversation' as const, id: item.id, person: item.otherUser, preview: item.messages.at(-1)?.content || 'Start the conversation', date: item.messages.at(-1)?.createdAt || '', unread: item.messages.filter(row => row.senderId !== currentUserId && !row.readAt).length, item })),
+    ...inbox.broadcasts.filter(item => !item.repliedConversationId).map(item => ({ kind: 'broadcast' as const, id: item.recipientId, person: item.sender, preview: `${item.subject}: ${item.content}`, date: item.createdAt, unread: item.readAt ? 0 : 1, item })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const currentConversation = active?.kind === 'conversation' ? inbox.conversations.find(item => item.id === active.id) : undefined;
+  const currentBroadcast = active?.kind === 'broadcast' ? inbox.broadcasts.find(item => item.recipientId === active.id) : undefined;
+  const threadBroadcast = currentConversation?.broadcast || inbox.broadcasts.find(item => item.repliedConversationId === currentConversation?.id);
+  const counterpart = currentConversation?.otherUser || currentBroadcast?.sender;
+  const showThread = mode !== 'inbox' || Boolean(active);
+  const matches = recipients.filter(item => `${item.name} ${item.email}`.toLowerCase().includes(search.trim().toLowerCase()));
+  useEffect(() => {
+    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+  }, [active?.id, currentConversation?.messages.length, currentBroadcast?.id]);
+
+  function composerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void send();
+    }
+  }
+
+  return (
+    <section className={`workspace-chat chat-layout ${showThread ? 'chat-has-thread' : ''}`} aria-label="Workspace chat">
+      <div className="chat-inbox">
+        <header className="chat-inbox-header">
+          <div><span className="eyebrow">WORKSPACE CHAT</span><h2>Inbox</h2></div>
+          <div className="chat-header-actions">
+            {canManage && <button type="button" className="chat-icon-button" title="Broadcast to everyone" aria-label="Broadcast to everyone" onClick={startBroadcast}><Megaphone size={19} /></button>}
+            <button type="button" className="chat-new-button" title="New chat" aria-label="New chat" onClick={startNew}><Plus size={20} /></button>
+          </div>
+        </header>
+        {notice && <p className="chat-notice" role="status">{notice}</p>}
+        {loading ? <p className="chat-empty">Loading chats…</p> : threads.length === 0 ? <div className="chat-empty"><MessageCircle size={27} /><p>No chats yet.</p><button type="button" onClick={startNew}>Start a chat</button></div> : (
+          <div className="chat-list">
+            {threads.map(thread => <button type="button" key={`${thread.kind}-${thread.id}`} className={`chat-list-item ${active?.kind === thread.kind && active.id === thread.id ? 'active' : ''}`} onClick={() => thread.kind === 'conversation' ? void openConversation(thread.item as Conversation) : void openBroadcast(thread.item as Broadcast)}>
+              <span className="chat-avatar">{initials(thread.person.name)}</span>
+              <span className="chat-list-copy"><strong>{thread.person.name}</strong><small>{thread.preview}</small></span>
+              <span className="chat-list-meta"><small>{time(thread.date)}</small>{thread.unread > 0 && <span className="chat-unread">{thread.unread > 99 ? '99+' : thread.unread}</span>}</span>
+            </button>)}
+          </div>
+        )}
+      </div>
+
+      <div className="chat-thread">
+        {error && <div className="notice error" role="alert">{error}</div>}
+        {mode === 'new' && !selectedPerson ? <>
+          <header className="chat-thread-header"><button type="button" className="chat-back" aria-label="Back to inbox" onClick={() => setMode('inbox')}><ArrowLeft size={18} /></button><div><strong>New chat</strong><small>Choose someone in your workspace</small></div></header>
+          <label className="chat-search"><Search size={18} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search people" aria-label="Search people" /></label>
+          <div className="chat-people">{matches.length ? matches.map(target => <button key={target.id} type="button" onClick={() => choosePerson(target)}><span className="chat-avatar">{initials(target.name)}</span><span><strong>{target.name}</strong><small>{target.email}</small></span></button>) : <p>No other active workspace users found.</p>}</div>
+        </> : mode === 'broadcast' ? <>
+          <header className="chat-thread-header"><button type="button" className="chat-back" aria-label="Back to inbox" onClick={() => setMode('inbox')}><ArrowLeft size={18} /></button><span className="chat-avatar"><Megaphone size={20} /></span><div><strong>New broadcast</strong><small>Each active user receives a private message</small></div></header>
+          <div className="chat-compose-broadcast"><label htmlFor="chat-subject">Subject</label><input id="chat-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={160} placeholder="Broadcast subject" /><p>Only admins and developers can send broadcasts. Replies are private.</p></div>
+          <div className="chat-composer"><textarea value={content} onChange={event => setContent(event.target.value)} onKeyDown={composerKeyDown} maxLength={4000} placeholder="Write your broadcast…" rows={3} aria-label="Broadcast message" /><button type="button" disabled={busy || !subject.trim() || !content.trim()} onClick={() => void send()} aria-label="Send broadcast"><Send size={19} /></button></div>
+        </> : mode === 'new' && selectedPerson ? <>
+          <header className="chat-thread-header"><button type="button" className="chat-back" aria-label="Choose another person" onClick={() => setSelectedPerson(null)}><ArrowLeft size={18} /></button><span className="chat-avatar">{initials(selectedPerson.name)}</span><div><strong>{selectedPerson.name}</strong><small>{selectedPerson.email}</small></div></header>
+          <div className="chat-messages chat-messages-empty">Write your first message to {selectedPerson.name}.</div>
+          <div className="chat-composer"><textarea value={content} onChange={event => setContent(event.target.value)} onKeyDown={composerKeyDown} maxLength={4000} placeholder="Write a message…" rows={2} aria-label="New message" /><button type="button" disabled={busy || !content.trim()} onClick={() => void send()} aria-label="Send message"><Send size={19} /></button></div>
+        </> : counterpart ? <>
+          <header className="chat-thread-header"><button type="button" className="chat-back" aria-label="Back to inbox" onClick={() => chooseActive(null)}><ArrowLeft size={18} /></button><span className="chat-avatar">{initials(counterpart.name)}</span><div><strong>{counterpart.name}</strong><small>{counterpart.email || 'Workspace member'}</small></div></header>
+          <div className="chat-messages" ref={messagesRef}>
+            {threadBroadcast && <div className="chat-bubble chat-bubble-received"><span className="chat-broadcast-label"><Megaphone size={13} /> Broadcast · {threadBroadcast.subject}</span><p>{threadBroadcast.content}</p><small>{time(threadBroadcast.createdAt)}</small></div>}
+            {currentConversation?.messages.map(item => <div key={item.id} className={`chat-bubble ${item.senderId === currentUserId ? 'chat-bubble-sent' : 'chat-bubble-received'}`}><p>{item.content}</p><small>{time(item.createdAt)}</small></div>)}
+            {currentBroadcast && <div className="chat-bubble chat-bubble-received"><span className="chat-broadcast-label"><Megaphone size={13} /> Broadcast · {currentBroadcast.subject}</span><p>{currentBroadcast.content}</p><small>{time(currentBroadcast.createdAt)}</small></div>}
+          </div>
+          <div className="chat-composer"><textarea value={content} onChange={event => setContent(event.target.value)} onKeyDown={composerKeyDown} maxLength={4000} placeholder="Write a message…" rows={2} aria-label="Reply" /><button type="button" disabled={busy || !content.trim()} onClick={() => void send()} aria-label="Send message"><Send size={19} /></button></div>
+        </> : <div className="chat-thread-placeholder"><MessageCircle size={34} /><h3>Your messages</h3><p>Select a chat or press + to start one.</p></div>}
+      </div>
+    </section>
+  );
 }

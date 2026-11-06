@@ -1,18 +1,24 @@
 'use client';
 import Brand from '../../components/Brand';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Layers3, Code2, Users, LockKeyhole, Download } from 'lucide-react';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
+declare global {
+  interface Window {
+    MidlexHRMS?: { postMessage: (message: string) => void };
+  }
+}
+
 function GoogleMark() {
   return (
-    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path fill="#4285F4" d="M21.35 12.25c0-.76-.07-1.48-.2-2.18H12v4.13h5.23a4.48 4.48 0 0 1-1.94 2.94v2.44h3.14c1.84-1.7 2.92-4.2 2.92-7.33Z" />
-      <path fill="#34A853" d="M12 21.75c2.63 0 4.84-.87 6.45-2.35l-3.14-2.44c-.87.59-1.98.94-3.31.94-2.54 0-4.69-1.71-5.46-4H3.3v2.52A9.75 9.75 0 0 0 12 21.75Z" />
-      <path fill="#FBBC05" d="M6.54 13.85a5.86 5.86 0 0 1 0-3.7V7.63H3.3a9.76 9.76 0 0 0 0 8.74l3.24-2.52Z" />
-      <path fill="#EA4335" d="M12 6.15c1.43 0 2.72.49 3.73 1.46l2.8-2.8A9.35 9.35 0 0 0 12 2.25a9.75 9.75 0 0 0-8.7 5.38l3.24 2.52c.77-2.29 2.92-4 5.46-4Z" />
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" focusable="false">
+      <path fill="#4285F4" d="M21.35 12.27c0-.71-.06-1.4-.18-2.05H12v3.88h5.24a4.48 4.48 0 0 1-1.94 2.94v2.44h3.14c1.84-1.7 2.91-4.2 2.91-7.21Z"/>
+      <path fill="#34A853" d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.44c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.52A9.75 9.75 0 0 0 12 21.75Z"/>
+      <path fill="#FBBC05" d="M6.54 13.84a5.86 5.86 0 0 1 0-3.68V7.64H3.3a9.75 9.75 0 0 0 0 8.72l3.24-2.52Z"/>
+      <path fill="#EA4335" d="M12 6.13c1.43 0 2.71.49 3.72 1.46l2.79-2.79C16.84 3.21 14.63 2.25 12 2.25a9.75 9.75 0 0 0-8.7 5.39l3.24 2.52C7.31 7.85 9.46 6.13 12 6.13Z"/>
     </svg>
   );
 }
@@ -21,6 +27,8 @@ export default function Login() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(false);
+  const appSessionCheck = useRef(false);
   const [role, setRole] = useState<'admin' | 'staff' | 'developer'>('admin');
 
   useEffect(() => {
@@ -43,13 +51,32 @@ export default function Login() {
         if (response.ok) await continueToProject();
       }).catch(() => undefined);
     }
-  }, []);
+    const appAccess = params.get('access');
+    if (params.get('midlexApp') !== '1' || params.get('openProject') !== 'hrms' || !['ADMIN', 'USER'].includes(appAccess || '') || appSessionCheck.current) return;
+    appSessionCheck.current = true;
+    setBusy(true);
+    setCheckingSession(true);
+    fetch('/api/me', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((data) => {
+        const userRole = typeof data?.user?.role === 'string' ? data.user.role.toLowerCase() : '';
+        if (['admin', 'staff', 'developer'].includes(userRole)) {
+          router.replace(`/${userRole}?midlexApp=1&openProject=hrms&access=${appAccess}`);
+          return;
+        }
+        setBusy(false);
+        setCheckingSession(false);
+      })
+      .catch(() => {
+        setBusy(false);
+        setCheckingSession(false);
+      });
+  }, [router]);
 
-  // A project may send an unauthenticated visitor here. After the central
-  // login succeeds, return them to that project through the normal one-use
-  // server handoff. No password or workspace token is shared with the project.
   async function continueToProject() {
-    if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
     const project = params.get('project');
     const returnTo = params.get('return_to');
@@ -57,12 +84,16 @@ export default function Login() {
     try {
       const target = new URL(returnTo);
       const allowedProjectHosts = new Set([
-        'cbt.midlex.xyz', 'admin.cbt.midlex.xyz', 'midlex-admin.midlex.xyz', 'lawyer.midlex.xyz',
-        'payment-portal.midlex.xyz', 'hrms.midlex.xyz', 'admin.hrms.midlex.xyz', 'reality.midlex.xyz',
+        'cbt.midlex.xyz', 'admin.cbt.midlex.xyz', 'midlex-admin.midlex.xyz',
+        'legal-admin.midlex.xyz', 'lawyer.midlex.xyz', 'payment-portal.midlex.xyz',
+        'hrms.midlex.xyz', 'admin.hrms.midlex.xyz', 'reality.midlex.xyz',
         'admin.reality.midlex.xyz', 'ai.midlex.xyz',
       ]);
-      if (!['https:', 'http:'].includes(target.protocol) || !allowedProjectHosts.has(target.hostname)) return false;
-      const result = await fetch(`/api/launch/${encodeURIComponent(project)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnUrl: window.location.origin }) });
+      if (target.protocol !== 'https:' || !allowedProjectHosts.has(target.hostname)) return false;
+      const result = await fetch(`/api/launch/${encodeURIComponent(project)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl: window.location.origin }),
+      });
       const data = await result.json();
       if (!result.ok || typeof data.url !== 'string') throw new Error(data.message || 'Unable to open the project');
       window.location.replace(data.url);
@@ -84,7 +115,12 @@ export default function Login() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const userRole = data.user.role.toLowerCase();
-      if (!(await continueToProject())) router.replace(`/${userRole}`);
+      const params = new URLSearchParams(window.location.search);
+      const appAccess = params.get('access');
+      const appLaunch = params.get('midlexApp') === '1' && params.get('openProject') === 'hrms' && ['ADMIN', 'USER'].includes(appAccess || '')
+        ? `?midlexApp=1&openProject=hrms&access=${appAccess}`
+        : params.get('midlexApp') === '1' ? '?midlexApp=1' : '';
+      if (!(await continueToProject())) router.replace(`/${userRole}${appLaunch}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign in failed');
     } finally {
@@ -95,20 +131,43 @@ export default function Login() {
   async function googleSubmit() {
     setBusy(true); setError('');
     try {
-      const config = {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'midlex-llp.firebaseapp.com',
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'midlex-llp',
-        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-      };
-      if (!config.apiKey || !config.appId) throw new Error('Google sign-in is not configured for this workspace');
-      const app = getApps().length ? getApp() : initializeApp(config);
-      const result = await signInWithPopup(getAuth(app), new GoogleAuthProvider());
-      const idToken = await result.user.getIdToken();
+      let idToken: string;
+      if (window.MidlexHRMS?.postMessage) {
+        const requestId = `google-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        idToken = await new Promise<string>((resolve, reject) => {
+          const timeout = window.setTimeout(() => finish(new Error('Google sign-in timed out. Please try again.')), 120000);
+          const handleResult = (event: Event) => {
+            const detail = (event as CustomEvent<{ requestId?: string; authenticated?: boolean; idToken?: string; error?: string | null }>).detail;
+            if (detail?.requestId !== requestId) return;
+            if (detail.authenticated && detail.idToken) finish(undefined, detail.idToken);
+            else finish(new Error(detail.error || 'Google sign-in was not completed.'));
+          };
+          const finish = (error?: Error, token?: string) => {
+            window.clearTimeout(timeout);
+            window.removeEventListener('midlex-google-auth-result', handleResult);
+            if (error) reject(error);
+            else if (token) resolve(token);
+            else reject(new Error('Google sign-in did not return a token.'));
+          };
+          window.addEventListener('midlex-google-auth-result', handleResult);
+          window.MidlexHRMS!.postMessage(JSON.stringify({ action: 'GOOGLE_SIGN_IN', requestId }));
+        });
+      } else {
+        const config = { apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY, authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'midlex-llp.firebaseapp.com', projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'midlex-llp', appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID };
+        if (!config.apiKey || !config.appId) throw new Error('Google sign-in is not configured for this workspace');
+        const app = getApps().length ? getApp() : initializeApp(config);
+        const result = await signInWithPopup(getAuth(app), new GoogleAuthProvider());
+        idToken = await result.user.getIdToken();
+      }
       const response = await fetch('/api/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Google sign-in failed');
-      if (!(await continueToProject())) router.replace(`/${data.user.role.toLowerCase()}`);
+      const params = new URLSearchParams(window.location.search);
+      const appAccess = params.get('access');
+      const appLaunch = params.get('midlexApp') === '1' && params.get('openProject') === 'hrms' && ['ADMIN', 'USER'].includes(appAccess || '')
+        ? `?midlexApp=1&openProject=hrms&access=${appAccess}`
+        : params.get('midlexApp') === '1' ? '?midlexApp=1' : '';
+      if (!(await continueToProject())) router.replace(`/${data.user.role.toLowerCase()}${appLaunch}`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Google sign-in failed'); }
     finally { setBusy(false); }
   }
@@ -183,15 +242,26 @@ export default function Login() {
             </label>
             {error && <div className="notice error" role="alert">{error}</div>}
             <button className="primary" disabled={busy}>
-              {busy ? 'Signing in…' : roleMeta.btnText}
+              {checkingSession ? 'Checking Workspace session…' : busy ? 'Signing in…' : roleMeta.btnText}
               <ArrowRight size={18} />
             </button>
           </form>
           <div className="login-divider"><span>or continue with Google</span></div>
-          <button type="button" className="secondary login-google-button" onClick={() => void googleSubmit()} disabled={busy}>
+          <button type="button" className="secondary login-google-button" onClick={() => void googleSubmit()} disabled={busy} aria-label="Continue with Google">
             <GoogleMark />
-            Continue with Google
+            <span>Continue with Google</span>
           </button>
+          {role === 'staff' && (
+            <a
+              className="staff-login-download"
+              href="https://drive.google.com/file/d/19v0FpRCzcbmKC9CMzpAW3NJBxfVl9GyU/view?usp=sharing"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download size={17} />
+              <span>Download Midlex HRMS app for Android</span>
+            </a>
+          )}
           <div className="login-note">
             <ShieldCheck size={19} />
             <span>

@@ -37,6 +37,7 @@ export const defaultCourts = [
 @Injectable()
 export class DirectoryService implements OnModuleInit {
   private filePath = path.join(process.cwd(), 'data', 'directory.json');
+  private readonly isProduction = process.env.NODE_ENV === 'production';
   private courts: string[] = [];
   private teams: string[] = [];
   private isLoaded = false;
@@ -61,13 +62,26 @@ export class DirectoryService implements OnModuleInit {
         return;
       }
     } catch (dbErr: any) {
+      if (this.isProduction) {
+        throw new Error(`[DirectoryService] Persistent database unavailable in production: ${dbErr?.message || dbErr}`);
+      }
       console.warn(
         '[DirectoryService] Could not read directory from DB, checking local file:',
         dbErr?.message || dbErr,
       );
     }
 
-    // 2. Fallback to local JSON file
+    // 2. Local JSON is development-only. Render disks are ephemeral and must
+    // never become the authoritative copy of workspace data.
+    if (this.isProduction) {
+      this.courts = [...defaultCourts];
+      this.teams = [...defaultTeams];
+      this.isLoaded = true;
+      await this.syncToDb();
+      return;
+    }
+
+    // 2. Fallback to local JSON file (development only)
     try {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8');
@@ -115,6 +129,9 @@ export class DirectoryService implements OnModuleInit {
         });
       }
     } catch (dbErr: any) {
+      if (this.isProduction) {
+        throw new Error(`[DirectoryService] Persistent database write failed in production: ${dbErr?.message || dbErr}`);
+      }
       console.warn(
         '[DirectoryService] DB sync warning:',
         dbErr?.message || dbErr,
@@ -128,6 +145,7 @@ export class DirectoryService implements OnModuleInit {
   }
 
   private saveToFile() {
+    if (this.isProduction) return;
     try {
       const dir = path.dirname(this.filePath);
       if (!fs.existsSync(dir)) {
@@ -243,7 +261,6 @@ export class DirectoryService implements OnModuleInit {
     const team = member.litigationTeam?.trim();
     return team && (await this.getLitigationTeams()).includes(team.toUpperCase()) ? team.toUpperCase() : null;
   }
-
   async assignLitigationLawyer(workspaceId: string, teamName: string) {
     const user = await this.prisma.workspaceUser.findUnique({ where: { id: workspaceId } });
     if (!user) throw new NotFoundException('Workspace user not found');
