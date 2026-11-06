@@ -10,11 +10,11 @@ interface Message {
   content: string;
   fileUrl?: string;
   senderId: string;
-  sender: { name: string };
+  sender: { name: string; role?: string };
   createdAt: string;
 }
 
-export default function ChatWidget({ caseId, status }: { caseId: string, status: string }) {
+export default function ChatWidget({ caseId, status, groupName, matterTitle }: { caseId: string, status: string, groupName?: string, matterTitle?: string }) {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -188,8 +188,9 @@ export default function ChatWidget({ caseId, status }: { caseId: string, status:
         <div>
           <h3 className="font-bold text-primary flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-            Case Discussion
+            {groupName || 'Client matter'}
           </h3>
+          <p className="text-xs text-gray-500 mt-1">{matterTitle || 'Case discussion'} · Client + Litigation Team</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
               aiMode ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
@@ -224,7 +225,7 @@ export default function ChatWidget({ caseId, status }: { caseId: string, status:
               <div className={`max-w-[85%] ${isMe ? 'text-right' : 'text-left'}`}>
                 {!isMe && (
                   <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-gray-400 ml-2">
-                    {senderName}
+                    {senderName}{msg.sender?.role ? ` · ${msg.sender.role.toLowerCase()}` : ''}
                   </p>
                 )}
                 <div className={`p-4 rounded-3xl inline-block text-left ${

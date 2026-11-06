@@ -217,19 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _dobController.dispose();
-    _nationalIdController.dispose();
-    _addressController.dispose();
-    _otherInfoController.dispose();
-    _caseTitleController.dispose();
-    _caseDescController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final user = Provider.of<AuthProvider>(context).user;
 

@@ -96,8 +96,8 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.caseModel.title, style: const TextStyle(fontSize: 16)),
-            const Text('Case Communication Channel', style: TextStyle(fontSize: 12, color: AppTheme.secondary)),
+            Text(widget.caseModel.client?.name ?? 'Client matter', style: const TextStyle(fontSize: 16)),
+            Text('${widget.caseModel.title} · Client + Litigation Team', style: const TextStyle(fontSize: 12, color: AppTheme.secondary)),
           ],
         ),
       ),
@@ -184,7 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 children: [
                                   if (!isMe && msg.sender?.name != null)
                                     Text(
-                                      msg.sender!.name,
+                                      '${msg.sender!.name}${msg.sender!.role.isNotEmpty ? ' · ${msg.sender!.role.toLowerCase()}' : ''}',
                                       style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.secondary),
                                     ),
                                   Text(

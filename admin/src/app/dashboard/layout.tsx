@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import RemindersBar from '@/components/Dashboard/RemindersBar';
 import NotificationBell from '@/components/Dashboard/NotificationBell';
 import PracticeSwitcher from '@/components/Dashboard/PracticeSwitcher';
+import { apiFetch } from '@/lib/api';
 
 const sidebarItems = {
   ADMIN: [
@@ -47,10 +48,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pendingReceiptCount, setPendingReceiptCount] = useState(0);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!user || !['ADMIN', 'ACCOUNTANT'].includes(user.role)) return;
+    let active = true;
+    const refreshPendingReceipts = async () => {
+      try {
+        const payments = await apiFetch('/payments');
+        if (!active || !Array.isArray(payments)) return;
+        const count = payments.reduce((sum: number, payment: any) => sum +
+          (payment.submissions || []).filter((submission: any) => submission.status === 'PENDING' && submission.proofUrl).length +
+          (payment.status === 'PENDING' && payment.proofUrl ? 1 : 0), 0);
+        setPendingReceiptCount(count);
+      } catch { /* Keep the last sidebar count when the API is briefly unavailable. */ }
+    };
+    void refreshPendingReceipts();
+    const interval = window.setInterval(refreshPendingReceipts, 60_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [user]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -107,6 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
                   </svg>
                   <span className="font-bold">{item.name}</span>
+                  {item.name === 'Payments' && pendingReceiptCount > 0 && <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">{pendingReceiptCount}</span>}
                 </Link>
               </motion.div>
             );
@@ -188,6 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} />
                       </svg>
                       <span className="font-bold">{item.name}</span>
+                      {item.name === 'Payments' && pendingReceiptCount > 0 && <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">{pendingReceiptCount}</span>}
                     </Link>
                   );
                 })}

@@ -224,7 +224,7 @@ export default function MessagesPage() {
                         }`}>
                           {((c.category || '').toUpperCase() === 'GENERAL' ? '🏛️' : '⚖️')}
                         </div>
-                        <p className="font-bold text-sm truncate">{c.title}</p>
+                        <p className="font-bold text-sm truncate">{c.client?.name || c.title}</p>
                       </div>
                       <span className={`text-[10px] font-medium shrink-0 ${
                         isSelected ? 'text-white/80' : 'text-gray-400'
@@ -243,7 +243,7 @@ export default function MessagesPage() {
                         <span className={`text-[9px] uppercase tracking-widest font-bold ${
                           isSelected ? 'text-white/60' : 'text-gray-400'
                         }`}>
-                          {c.client?.name ? `Client: ${c.client.name}` : c.status}
+                          {c.title}
                         </span>
                         <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                           isSelected 
@@ -271,6 +271,8 @@ export default function MessagesPage() {
               <ChatWidget
                 caseId={selectedCaseId}
                 status={activeSelectedCase.status || "OPEN"}
+                groupName={activeSelectedCase.client?.name || 'Client matter'}
+                matterTitle={activeSelectedCase.title}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center bg-white rounded-[40px] border border-gray-100 text-gray-400 p-10 text-center shadow-sm">

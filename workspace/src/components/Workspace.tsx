@@ -3,6 +3,7 @@ import Brand from "./Brand";
 import ManageAccount from "./ManageAccount";
 import WorkspaceChat from "./WorkspaceChat";
 import ChatErrorBoundary from "./ChatErrorBoundary";
+import JSZip from "jszip";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +15,7 @@ import {
   ChevronRight,
   Code2,
   Download,
+  Database,
   ExternalLink,
   FolderOpen,
   LayoutDashboard,
@@ -27,6 +29,7 @@ import {
   SlidersHorizontal,
   Smartphone,
   Trash2,
+  Upload,
   UserRound,
   Users,
   X,
@@ -117,10 +120,87 @@ export default function Workspace({ role }: { role: string }) {
   const [editor, setEditor] = useState<Person | "new" | null>(null);
   const [grants, setGrants] = useState<Record<string, Grant>>({});
   const [busy, setBusy] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupDue, setBackupDue] = useState(false);
   const [launching, setLaunching] = useState("");
   const [profileProject, setProfileProject] = useState<Project | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "ADMIN">("STAFF");
+
+  const backupFilename = () => `Midlex-LLP-Workspace-Backup-${new Date().toISOString().slice(0, 10)}.zip`;
+  const makeBackupZip = async () => {
+    const backup = await api("backup/export");
+    const zip = new JSZip();
+    zip.file("backup.json", JSON.stringify(backup, null, 2));
+    zip.file("README.txt", [
+      "MIDLEX LLP + WORKSPACE BACKUP",
+      `Created: ${backup.createdAt}`,
+      "Scope: Midlex LLP legal records, developer/admin workspace identities and access, chats, notifications, and activity history.",
+      "Restore: In Developer or Admin Workspace, open Backup & restore and select this ZIP.",
+      "Restore merges records by ID: matching records are restored from this snapshot; newer records absent from the snapshot are preserved.",
+      "Uploaded documents and receipt files stored by external providers are represented by their saved URLs and are not embedded in this ZIP.",
+      "This archive contains sensitive personal, legal, financial, chat, and password-hash data. Store it securely.",
+    ].join("\n"));
+    return zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  };
+  const saveBackupBlob = async (blob: Blob, suggestedName: string, chooseLocation: boolean) => {
+    const pickerWindow = window as Window & { showSaveFilePicker?: (options: unknown) => Promise<{ createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void> }> }> };
+    if (chooseLocation && pickerWindow.showSaveFilePicker) {
+      const handle = await pickerWindow.showSaveFilePicker({ suggestedName, types: [{ description: "ZIP backup", accept: { "application/zip": [".zip"] } }] });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = suggestedName;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const downloadBackup = async () => {
+    setBackupBusy(true);
+    setError("");
+    try {
+      const blob = await makeBackupZip();
+      await saveBackupBlob(blob, backupFilename(), true);
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      localStorage.setItem("midlex-workspace-backup-week", `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`);
+      setBackupDue(false);
+      setNotice("Backup downloaded. Save the dated ZIP in Documents every Monday.");
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError(e instanceof Error ? e.message : "Could not create the backup");
+    } finally { setBackupBusy(false); }
+  };
+  const restoreBackup = async (file?: File) => {
+    if (!file) return;
+    setBackupBusy(true);
+    setError("");
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const backupFile = zip.file("backup.json");
+      if (!backupFile) throw new Error("This ZIP does not contain a Midlex backup.json file.");
+      const backup = JSON.parse(await backupFile.async("string"));
+      if (backup?.format !== "midlex-workspace-backup" || backup?.version !== 1 || !backup?.collections) throw new Error("This backup format is not supported.");
+      const recordCount = Object.values(backup.collections as Record<string, unknown[]>).reduce((total, rows) => total + (Array.isArray(rows) ? rows.length : 0), 0);
+      if (!window.confirm(`Restore ${recordCount.toLocaleString()} saved records from ${file.name}? Matching IDs will be restored from this backup; newer records will be kept. A safety backup of the current workspace will download first.`)) return;
+      const safetyZip = await makeBackupZip();
+      await saveBackupBlob(safetyZip, `Midlex-Pre-Restore-Safety-${new Date().toISOString().slice(0, 10)}.zip`, false);
+      const compressedStream = new Blob([JSON.stringify(backup)]).stream().pipeThrough(new CompressionStream("gzip"));
+      const compressed = new Uint8Array(await new Response(compressedStream).arrayBuffer());
+      let binary = "";
+      for (let offset = 0; offset < compressed.length; offset += 0x8000) binary += String.fromCharCode(...compressed.subarray(offset, offset + 0x8000));
+      const result = await api("backup/restore", "POST", { confirmation: "RESTORE_MIDLEX_BACKUP", compressedBackup: btoa(binary) });
+      setNotice(`Restore complete: ${result.inserted} records recovered and ${result.updated} records restored. Newer records and your signed-in account were preserved.`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not restore the selected backup");
+    } finally { setBackupBusy(false); }
+  };
   const load = useCallback(async () => {
     try {
       const next = await api("me");
@@ -176,6 +256,13 @@ export default function Workspace({ role }: { role: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const weekKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+    setBackupDue(localStorage.getItem("midlex-workspace-backup-week") !== weekKey);
+  }, []);
   useEffect(() => {
     const refresh = () => {
       void load();
@@ -446,6 +533,9 @@ export default function Workspace({ role }: { role: string }) {
             ...(developer
               ? [{ id: "activity", name: "Activity log", icon: Activity }]
               : []),
+            ...(canManageUsers
+              ? [{ id: "backup", name: "Backup & restore", icon: Database }]
+              : []),
             { id: "chat", name: "Chat", icon: MessageCircle },
             { id: "account", name: "Manage Account", icon: UserRound },
           ].map((item) => (
@@ -499,6 +589,8 @@ export default function Workspace({ role }: { role: string }) {
                 ? "People & access"
                 : tab === "activity"
                   ? "Activity log"
+                  : tab === "backup"
+                    ? "Backup & restore"
                   : tab === "chat"
                     ? "Chat"
                   : tab === "account"
@@ -559,6 +651,8 @@ export default function Workspace({ role }: { role: string }) {
                   ? "Onboard your team and set permissions for each project independently."
                   : tab === "activity"
                     ? "Sign-ins, onboarding and permission changes across your workspace."
+                  : tab === "backup"
+                    ? "Create a weekly dated archive or restore a saved Midlex backup."
                   : tab === "chat"
                     ? "Private messages and broadcasts in one inbox."
                   : tab === "account"
@@ -566,7 +660,7 @@ export default function Workspace({ role }: { role: string }) {
                     : details.subtitle}
               </p>
             </div>
-            {canManageUsers && tab !== "account" && (
+            {canManageUsers && !["account", "backup"].includes(tab) && (
               <button
                 className="primary compact"
                 onClick={() => {
@@ -598,6 +692,28 @@ export default function Workspace({ role }: { role: string }) {
             </div>
           )}
           {tab === "account" && <ManageAccount user={data.user} onSaved={user => setData(current => current ? { ...current, user: { ...current.user, ...user } } : current)} onPassword={() => { setError(""); setPasswordOpen(true); }} />}
+          {tab === "backup" && canManageUsers && (
+            <section className="panel backup-panel">
+              {backupDue && <div className="backup-due" role="status"><strong>Weekly backup due</strong><span>Download and save a dated copy in Documents this week.</span></div>}
+              <div className="backup-intro">
+                <span className="activity-icon"><Database size={22} /></span>
+                <div><h2>Midlex records, ready to restore</h2><p>Back up the legal workspace and Developer/Admin Workspace together, including cases, payments, account access, chats, notifications, and workspace activity.</p></div>
+              </div>
+              <div className="backup-actions">
+                <button className="primary" disabled={backupBusy} onClick={() => void downloadBackup()}><Download size={17} />{backupBusy ? "Preparing backup…" : "Download this week’s backup"}</button>
+                <label className={`secondary backup-restore ${backupBusy ? "disabled" : ""}`}>
+                  <Upload size={17} />{backupBusy ? "Working…" : "Restore from ZIP"}
+                  <input type="file" accept=".zip,application/zip" disabled={backupBusy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void restoreBackup(file); }} />
+                </label>
+              </div>
+              <div className="backup-guidance">
+                <h3>Weekly manual routine</h3>
+                <p>Download a backup every Monday and keep the dated ZIP in your Documents folder. On desktop Chrome, the save dialog lets you select Documents; otherwise it downloads to your browser’s Downloads folder for you to move.</p>
+                <p>Restore is available to workspace admins and the developer. It first downloads a safety copy, then merges records by ID: matching records return to the selected backup version, while records created after that backup remain.</p>
+                <p className="backup-sensitive">The ZIP includes confidential legal, personal, payment, chat, and password-hash data. Uploaded files hosted by external providers are kept as saved links and are not embedded in this archive.</p>
+              </div>
+            </section>
+          )}
           {tab === "chat" && <ChatErrorBoundary><WorkspaceChat canManage={canManageUsers} currentUserId={data.user.id} onUnreadChange={setUnreadMessages} /></ChatErrorBoundary>}
           {tab === "overview" && (
             <>
@@ -1120,7 +1236,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required={editor === "new"}
                   placeholder={
                     editor !== "new" ? "Leave blank to preserve password" : ""
@@ -1128,8 +1244,8 @@ export default function Workspace({ role }: { role: string }) {
                 />
                 <small>
                   {editor === "new"
-                    ? "At least 12 characters. They will choose a new password on first sign-in."
-                    : "Enter at least 12 characters only if you wish to reset their password."}
+                    ? "At least 8 characters. They will choose a new password on first sign-in."
+                    : "Enter at least 8 characters only if you wish to reset their password."}
                 </small>
               </label>
               <div className="form-row">
@@ -1351,7 +1467,7 @@ export default function Workspace({ role }: { role: string }) {
                 </button>
               )}
             </header>
-            <p>Choose a password of at least 12 characters to continue.</p>
+            <p>Choose a password of at least 8 characters to continue.</p>
             <form onSubmit={password}>
               {error && (
                 <div className="notice error" role="alert">
@@ -1374,7 +1490,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="password"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required
                 />
               </label>
@@ -1384,7 +1500,7 @@ export default function Workspace({ role }: { role: string }) {
                   name="confirm"
                   type="password"
                   autoComplete="new-password"
-                  minLength={12}
+                  minLength={8}
                   required
                 />
               </label>

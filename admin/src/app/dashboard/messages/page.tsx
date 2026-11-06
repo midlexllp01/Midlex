@@ -40,6 +40,10 @@ export default function MessagesPage() {
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthStr());
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastText, setBroadcastText] = useState('');
+  const [broadcastBusy, setBroadcastBusy] = useState(false);
+  const [broadcastNotice, setBroadcastNotice] = useState('');
 
   const isStaff = user?.role === 'ADMIN' || user?.role === 'LAWYER';
   const [activeTab, setActiveTab] = useState<'CASE_CHATS' | 'TEAM_GROUP_CHAT'>('CASE_CHATS');
@@ -111,6 +115,26 @@ export default function MessagesPage() {
     filteredCases.find((c) => c.id === selectedCaseId) ||
     cases.find((c) => c.id === selectedCaseId);
 
+  const sendBroadcast = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!broadcastText.trim() || broadcastBusy) return;
+    setBroadcastBusy(true);
+    setBroadcastNotice('');
+    try {
+      const result = await apiFetch<{ recipientCount: number; chatCount: number }>('/chat/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({ content: broadcastText.trim() }),
+      });
+      setBroadcastNotice(`Sent to ${result.recipientCount} clients and added to ${result.chatCount} active case chats.`);
+      setBroadcastText('');
+      setBroadcastOpen(false);
+    } catch (error) {
+      setBroadcastNotice(error instanceof Error ? error.message : 'The broadcast could not be sent. Please try again.');
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -120,7 +144,16 @@ export default function MessagesPage() {
         </div>
 
         {isStaff && (
-          <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl border border-gray-200">
+          <div className="flex flex-wrap items-center gap-2 bg-gray-100 p-1.5 rounded-2xl border border-gray-200">
+            {user?.role === 'ADMIN' && (
+              <button
+                type="button"
+                onClick={() => { setBroadcastOpen((open) => !open); setBroadcastNotice(''); }}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-primary border border-gray-200 hover:border-primary transition-all"
+              >
+                📢 Broadcast to clients
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('CASE_CHATS')}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -144,6 +177,36 @@ export default function MessagesPage() {
           </div>
         )}
       </div>
+
+      {broadcastOpen && user?.role === 'ADMIN' && (
+        <form onSubmit={sendBroadcast} className="rounded-3xl border border-primary/15 bg-white p-5 shadow-sm space-y-3">
+          <div>
+            <h3 className="font-bold text-primary">Broadcast to all clients</h3>
+            <p className="text-xs text-gray-500 mt-1">This message will appear in active client case chats. Clients can reply in their own chat.</p>
+          </div>
+          <textarea
+            value={broadcastText}
+            onChange={(event) => setBroadcastText(event.target.value)}
+            maxLength={4000}
+            rows={3}
+            required
+            placeholder="Write an update for Midlex LLP clients..."
+            className="w-full rounded-2xl border border-gray-200 p-4 text-sm text-gray-800 outline-none focus:border-primary resize-y"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-gray-400">{broadcastText.length}/4000 characters</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setBroadcastOpen(false)} className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600">Cancel</button>
+              <button type="submit" disabled={broadcastBusy || !broadcastText.trim()} className="px-5 py-2 rounded-xl text-xs font-bold bg-primary text-white disabled:opacity-50">
+                {broadcastBusy ? 'Sending…' : 'Send broadcast'}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+      {broadcastNotice && (
+        <p role="status" className="rounded-2xl border border-primary/15 bg-white px-4 py-3 text-sm text-primary">{broadcastNotice}</p>
+      )}
 
       <MonthPickerFilter
         selectedMonth={selectedMonth}
@@ -224,7 +287,7 @@ export default function MessagesPage() {
                         }`}>
                           {((c.category || '').toUpperCase() === 'GENERAL' ? '🏛️' : '⚖️')}
                         </div>
-                        <p className="font-bold text-sm truncate">{c.title}</p>
+                        <p className="font-bold text-sm truncate">{c.client?.name || c.title}</p>
                       </div>
                       <span className={`text-[10px] font-medium shrink-0 ${
                         isSelected ? 'text-white/80' : 'text-gray-400'
@@ -243,7 +306,7 @@ export default function MessagesPage() {
                         <span className={`text-[9px] uppercase tracking-widest font-bold ${
                           isSelected ? 'text-white/60' : 'text-gray-400'
                         }`}>
-                          {c.client?.name ? `Client: ${c.client.name}` : c.status}
+                          {c.title}
                         </span>
                         <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                           isSelected 
@@ -271,6 +334,8 @@ export default function MessagesPage() {
               <ChatWidget
                 caseId={selectedCaseId}
                 status={activeSelectedCase.status || "OPEN"}
+                groupName={activeSelectedCase.client?.name || 'Client matter'}
+                matterTitle={activeSelectedCase.title}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center bg-white rounded-[40px] border border-gray-100 text-gray-400 p-10 text-center shadow-sm">

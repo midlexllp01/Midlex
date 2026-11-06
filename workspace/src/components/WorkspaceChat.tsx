@@ -67,6 +67,7 @@ function initials(name: string) {
 export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange }: { canManage: boolean; currentUserId: string; onUnreadChange?: (count: number) => void }) {
   const [inbox, setInbox] = useState<Inbox>(emptyInbox);
   const [recipients, setRecipients] = useState<Person[]>([]);
+  const [recipientsLoading, setRecipientsLoading] = useState(true);
   const [active, setActive] = useState<Active>(null);
   const activeRef = useRef<Active>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -109,7 +110,10 @@ export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange
 
   useEffect(() => {
     void refresh();
-    void request('chat/recipients').then(value => setRecipients(Array.isArray(value) ? value.map(person) : [])).catch(cause => setError(cause instanceof Error ? cause.message : 'Unable to load people'));
+    void request('chat/recipients')
+      .then(value => setRecipients(Array.isArray(value) ? value.map(person) : []))
+      .catch(cause => setError(cause instanceof Error ? cause.message : 'Unable to load people'))
+      .finally(() => setRecipientsLoading(false));
     const timer = window.setInterval(() => { void refresh(); }, 15000);
     return () => window.clearInterval(timer);
   }, []);
@@ -158,8 +162,12 @@ export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange
   function choosePerson(target: Person) {
     const existing = inbox.conversations.find(item => item.type === 'DIRECT' && item.otherUser.id === target.id);
     if (existing) { void openConversation(existing); return; }
+    chooseActive(null);
+    setMode('new');
     setSelectedPerson(target);
     setContent('');
+    setError('');
+    setNotice('');
   }
 
   async function send() {
@@ -228,13 +236,26 @@ export default function WorkspaceChat({ canManage, currentUserId, onUnreadChange
           </div>
         </header>
         {notice && <p className="chat-notice" role="status">{notice}</p>}
-        {loading ? <p className="chat-empty">Loading chats…</p> : threads.length === 0 ? <div className="chat-empty"><MessageCircle size={27} /><p>No chats yet.</p><button type="button" onClick={startNew}>Start a chat</button></div> : (
-          <div className="chat-list">
-            {threads.map(thread => <button type="button" key={`${thread.kind}-${thread.id}`} className={`chat-list-item ${active?.kind === thread.kind && active.id === thread.id ? 'active' : ''}`} onClick={() => thread.kind === 'conversation' ? void openConversation(thread.item as Conversation) : void openBroadcast(thread.item as Broadcast)}>
-              <span className="chat-avatar">{initials(thread.person.name)}</span>
-              <span className="chat-list-copy"><strong>{thread.person.name}</strong><small>{thread.preview}</small></span>
-              <span className="chat-list-meta"><small>{time(thread.date)}</small>{thread.unread > 0 && <span className="chat-unread">{thread.unread > 99 ? '99+' : thread.unread}</span>}</span>
-            </button>)}
+        {loading ? <p className="chat-empty">Loading chats…</p> : (
+          <div className="chat-inbox-content">
+            {threads.length > 0 && <>
+              <h3 className="chat-section-title">Recent chats</h3>
+              <div className="chat-list">
+                {threads.map(thread => <button type="button" key={`${thread.kind}-${thread.id}`} className={`chat-list-item ${active?.kind === thread.kind && active.id === thread.id ? 'active' : ''}`} onClick={() => thread.kind === 'conversation' ? void openConversation(thread.item as Conversation) : void openBroadcast(thread.item as Broadcast)}>
+                  <span className="chat-avatar">{initials(thread.person.name)}</span>
+                  <span className="chat-list-copy"><strong>{thread.person.name}</strong><small>{thread.preview}</small></span>
+                  <span className="chat-list-meta"><small>{time(thread.date)}</small>{thread.unread > 0 && <span className="chat-unread">{thread.unread > 99 ? '99+' : thread.unread}</span>}</span>
+                </button>)}
+              </div>
+            </>}
+            <h3 className="chat-section-title">People <span>{recipients.length}</span></h3>
+            <label className="chat-search chat-inbox-search"><Search size={18} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search people" aria-label="Search people in workspace" /></label>
+            <div className="chat-people chat-inbox-people">
+              {recipientsLoading ? <p>Loading workspace users…</p> : matches.length ? matches.map(target => <button key={target.id} type="button" onClick={() => choosePerson(target)}>
+                <span className="chat-avatar">{initials(target.name)}</span>
+                <span><strong>{target.name}</strong><small>{target.email} · {target.role.toLowerCase()}</small></span>
+              </button>) : <p>{recipients.length ? 'No people match your search.' : 'No other active workspace users found.'}</p>}
+            </div>
           </div>
         )}
       </div>

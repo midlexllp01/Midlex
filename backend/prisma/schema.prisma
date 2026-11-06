@@ -65,6 +65,7 @@ model User {
   documentsUploaded Document[]
   payments         Payment[]
   verifiedPayments Payment[] @relation("PaymentVerifier")
+  verifiedSubmissions PaymentSubmission[] @relation("SubmissionVerifier")
 }
 
 model Case {
@@ -179,9 +180,33 @@ model Payment {
   case            Case          @relation(fields: [caseId], references: [id])
 
   verifiedBy      User?         @relation("PaymentVerifier", fields: [verifiedById], references: [id])
+  submissions     PaymentSubmission[]
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+}
+
+model PaymentSubmission {
+  id               String        @id @default(uuid())
+  paymentId        String
+  payment          Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount           Float
+  accountId        String?
+  account          PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  proofUrl         String?
+  proofType        String?
+  status           PaymentStatus @default(PENDING)
+  submittedAt      DateTime      @default(now())
+  proofExpiresAt   DateTime
+  verifiedAt       DateTime?
+  verifiedById     String?
+  verifiedBy       User?         @relation("SubmissionVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verificationNote String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([paymentId, status])
+  @@index([proofExpiresAt])
 }
 
 model PaymentAccount {
@@ -194,6 +219,7 @@ model PaymentAccount {
   isActive     Boolean  @default(true)
 
   payments     Payment[]
+  submissions  PaymentSubmission[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

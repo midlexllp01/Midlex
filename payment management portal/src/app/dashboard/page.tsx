@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useDeferredValue } from "react";
 import { apiFetch } from "@/lib/api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -36,6 +38,8 @@ interface Payment {
   status: string;
   txRef: string;
   createdAt: string;
+  updatedAt?: string;
+  paidAt?: string | null;
   dueDate?: string | null;
   description?: string | null;
   case?: { id: string; title: string; lawyer?: { name: string } } | null;
@@ -50,6 +54,9 @@ interface Payment {
   } | null;
   proofUrl?: string | null;
   proofSubmittedAt?: string | null;
+  paidAmount?: number;
+  remainingAmount?: number;
+  submissions?: Array<{ id: string; amount: number; status: string; proofUrl?: string | null; submittedAt?: string; verifiedAt?: string | null; account?: PaymentAccount | null }>;
   verifiedAt?: string | null;
   verificationNote?: string | null;
   verifiedBy?: { name: string } | null;
@@ -106,6 +113,7 @@ export default function PaymentManagementDashboard() {
   // Modals
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [selectedProof, setSelectedProof] = useState<Payment | null>(null);
 
   // Forms
@@ -164,7 +172,7 @@ export default function PaymentManagementDashboard() {
   // Action: Create Payment Request
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user?.role !== 'ADMIN') return;
+    if (!['ADMIN', 'ACCOUNTANT'].includes(user?.role || '')) return;
     setRequestError("");
     setIsSubmittingRequest(true);
 
@@ -217,8 +225,8 @@ export default function PaymentManagementDashboard() {
       if (!accountForm.accountName.trim()) throw new Error("Account name is required");
       if (!accountForm.accountNumber.trim()) throw new Error("Account number is required");
 
-      await apiFetch("/payment-accounts", {
-        method: "POST",
+      await apiFetch(editingAccountId ? `/payment-accounts/${editingAccountId}` : "/payment-accounts", {
+        method: editingAccountId ? "PATCH" : "POST",
         body: JSON.stringify({
           bankName: accountForm.bankName.trim(),
           accountName: accountForm.accountName.trim(),
@@ -230,6 +238,7 @@ export default function PaymentManagementDashboard() {
 
       alert("Firm receiving bank account added successfully!");
       setIsAccountModalOpen(false);
+      setEditingAccountId(null);
       setAccountForm({
         bankName: "",
         accountName: "",
@@ -268,17 +277,59 @@ export default function PaymentManagementDashboard() {
     }
   };
 
+  const handleVerifySubmission = async (submissionId: string, status: 'SUCCESS' | 'FAILED') => {
+    try {
+      await apiFetch(`/payments/submissions/${submissionId}/verify`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await loadData();
+    } catch (error) { alert(error instanceof Error ? error.message : 'Could not review this receipt'); }
+  };
+
+  const downloadPaymentHistoryPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(17);
+    doc.text('MIDLEX LLP · PAYMENT HISTORY', 14, 16);
+    doc.setFontSize(9);
+    doc.text(`Generated ${new Date().toLocaleString()} · ${filteredPayments.length} records`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [['Date', 'Reference', 'Client', 'Matter', 'Invoice', 'Paid', 'Remaining', 'Status', 'Method']],
+      body: filteredPayments.map((p) => [new Date(p.createdAt).toLocaleDateString(), p.txRef, p.client?.name || 'Client', p.case?.title || p.description || 'Legal services', `${p.currency} ${Number(p.amount).toLocaleString()}`, `${p.currency} ${Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()}`, `${p.currency} ${Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}`, p.status, p.paymentProvider || p.account?.bankName || 'Bank transfer']),
+      styles: { fontSize: 8 }, headStyles: { fillColor: [27, 77, 46] },
+    });
+    doc.save(`midlex-payment-history-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handlePrintReceipt = (p: Payment, submission?: NonNullable<Payment['submissions']>[number]) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    if (!printWindow) return alert('Please allow popups to print the receipt.');
+    const paid = submission ? Number(submission.amount) : Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0));
+    const receiptRef = submission ? `${p.txRef}-${submission.id.slice(-8)}` : p.txRef;
+    const rows: Array<[string, string]> = [
+      ['Receipt reference', receiptRef], ['Invoice reference', p.txRef], ['Client', p.client?.name || 'Client'],
+      ['Email', p.client?.email || '—'], ['Matter', p.case?.title || p.description || 'Legal services'],
+      ['Amount received', `${p.currency} ${paid.toLocaleString()}`],
+      ['Paid to', submission?.account ? `${submission.account.bankName} · ${submission.account.accountName} · ${submission.account.accountNumber}` : p.account ? `${p.account.bankName} · ${p.account.accountName} · ${p.account.accountNumber}` : p.paymentProvider || 'Bank transfer'],
+      ['Status', submission?.status === 'SUCCESS' || p.status === 'SUCCESS' ? 'Approved' : p.status],
+      ['Date', new Date(submission?.verifiedAt || p.paidAt || p.updatedAt || p.createdAt).toLocaleString()],
+    ];
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char));
+    printWindow.document.write(`<!doctype html><html><head><title>Payment receipt</title><style>body{font:15px Arial,sans-serif;color:#183c2c;margin:48px}h1{margin-bottom:4px}small{color:#64748b}.box{border:1px solid #d7e2d8;border-radius:12px;padding:20px;margin-top:24px}p{padding:10px 0;border-bottom:1px solid #edf0ed;display:flex;justify-content:space-between;gap:20px}b{text-align:right}@media print{body{margin:20mm}}</style></head><body><h1>MIDLEX LLP</h1><small>Payment receipt · Finance record</small><div class="box">${rows.map(([label, value]) => `<p><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></p>`).join('')}</div><small>Generated ${escapeHtml(new Date().toLocaleString())}</small><script>window.onload=()=>window.print()</script></body></html>`);
+    printWindow.document.close();
+  };
+
   // KPIs
   const totalVerifiedRevenue = payments
-    .filter((p) => p.status === "SUCCESS" && p.currency === "NGN")
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
+    .filter((p) => p.currency === "NGN")
+    .reduce((sum, p) => sum + Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)), 0);
 
   const totalPendingAmount = payments
-    .filter((p) => p.status === "PENDING" && p.currency === "NGN")
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
+    .filter((p) => p.currency === "NGN")
+    .reduce((sum, p) => sum + Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)), 0);
 
   const totalInvoicesCount = payments.length;
-  const pendingCount = payments.filter((p) => p.status === "PENDING").length;
+  const pendingCount = payments.reduce((count, p) => count + (p.submissions || []).filter((submission) => submission.status === 'PENDING' && submission.proofUrl).length + (p.proofUrl && p.status === 'PENDING' ? 1 : 0), 0);
+  const unpaidInvoiceCount = payments.filter((payment) => Number(payment.remainingAmount ?? (payment.status === 'SUCCESS' ? 0 : payment.amount)) > 0).length;
+  const canManagePayments = ['ADMIN', 'ACCOUNTANT'].includes(user?.role || '');
 
   // Filtered Payments
   const filteredPayments = payments.filter((p) => {
@@ -290,7 +341,7 @@ export default function PaymentManagementDashboard() {
       (p.description && p.description.toLowerCase().includes(q));
 
     const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
-    return matchesSearch && matchesStatus && (!reviewOnly || (p.status === "PENDING" && !!p.proofUrl));
+    return matchesSearch && matchesStatus && (!reviewOnly || (p.submissions || []).some((submission) => submission.status === 'PENDING' && !!submission.proofUrl) || (p.status === "PENDING" && !!p.proofUrl));
   });
 
   return (
@@ -299,12 +350,12 @@ export default function PaymentManagementDashboard() {
         <div className="pointer-events-none absolute -right-12 -top-24 h-80 w-80 rounded-full border-[40px] border-white/5" />
         <div className="relative flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-xl"><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#bbd6aa]">Midlex / Finance workspace</p><h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Every payment. In view.</h1><p className="mt-3 text-sm leading-6 text-white/70">Track invoices created by admin, review transfer receipts, and keep client payments reconciled.</p></div>
-          <button onClick={loadData} disabled={isLoading} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm hover:bg-white/10 disabled:opacity-50"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/> Refresh records</button>
+          <div className="flex flex-wrap gap-2"><button onClick={downloadPaymentHistoryPdf} className="rounded-xl border border-white/25 px-4 py-2.5 text-sm hover:bg-white/10">Download history PDF</button><button onClick={loadData} disabled={isLoading} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-2.5 text-sm hover:bg-white/10 disabled:opacity-50"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/> Refresh records</button></div>
         </div>
         <div className="relative mt-7 flex flex-wrap gap-3">
           <button onClick={() => { setActiveTab('transactions'); setReviewOnly(true); setStatusFilter('PENDING'); }} className="inline-flex items-center gap-2 rounded-xl bg-[#d9ebc6] px-5 py-3 text-sm font-semibold text-[#163f31]"><ShieldCheck size={17}/> Review receipts <span className="rounded-full bg-[#163f31] px-2 py-0.5 text-xs text-white">{payments.filter(p => p.status === 'PENDING' && p.proofUrl).length}</span></button>
           <button onClick={() => setActiveTab('accounts')} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10">Receiving accounts</button>
-          {user?.role === 'ADMIN' && <button onClick={() => setIsRequestModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10"><Plus size={17}/> Create invoice</button>}
+          {canManagePayments && <button onClick={() => setIsRequestModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-5 py-3 text-sm font-medium hover:bg-white/10"><Plus size={17}/> Create invoice</button>}
         </div>
       </section>
       {loadError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{loadError} <button className="ml-2 underline" onClick={loadData}>Retry</button></div>}
@@ -312,7 +363,7 @@ export default function PaymentManagementDashboard() {
         {[{ key: 'opay', name: 'OPay', badge: 'O', description: 'Hosted checkout and business-account transfers.' }, { key: 'moniepoint', name: 'Moniepoint', badge: 'M', description: 'Monnify checkout and business-account transfers.' }].map(provider => {
           const status = providers?.[provider.key];
           const receiving = accounts.filter(a => a.bankName.toLowerCase().includes(provider.key === 'opay' ? 'opay' : 'moniepoint'));
-          return <article key={provider.key} className="flex gap-4 rounded-2xl border border-[#dce6df] bg-white p-5"><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold ${provider.key === 'opay' ? 'bg-[#d9f7eb] text-[#087f5b]' : 'bg-[#e9eeff] text-[#2354c5]'}`}>{provider.badge}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold text-[#173e34]">{provider.name}</h2><span className="rounded-full bg-[#f1f5ee] px-2.5 py-1 text-[10px] font-semibold text-[#56705f]">{status ? status.configured ? `${status.mode === 'live' ? 'Live' : 'Sandbox'} configured` : 'Checkout setup required' : 'Checkout status unavailable'}</span></div><p className="mt-2 text-xs leading-5 text-[#718277]">{provider.description}</p><button onClick={() => { setAccountForm({ ...accountForm, bankName: provider.name }); setIsAccountModalOpen(true); }} className="mt-3 text-xs font-semibold text-[#245942]">{receiving.length ? `${receiving.length} receiving account(s) · Add another` : 'Add receiving account'} <ArrowUpRight size={12} className="inline"/></button></div></article>;
+          return <article key={provider.key} className="flex gap-4 rounded-2xl border border-[#dce6df] bg-white p-5"><span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold ${provider.key === 'opay' ? 'bg-[#d9f7eb] text-[#087f5b]' : 'bg-[#e9eeff] text-[#2354c5]'}`}>{provider.badge}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold text-[#173e34]">{provider.name}</h2><span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">Online checkout · Coming soon</span></div><p className="mt-2 text-xs leading-5 text-[#718277]">{provider.description}</p><button onClick={() => { setAccountForm({ ...accountForm, bankName: provider.name }); setEditingAccountId(null); setIsAccountModalOpen(true); }} className="mt-3 text-xs font-semibold text-[#245942]">{receiving.length ? `${receiving.length} receiving account(s) · Add another` : 'Add receiving account'} <ArrowUpRight size={12} className="inline"/></button></div></article>;
         })}
       </section>
 
@@ -347,7 +398,7 @@ export default function PaymentManagementDashboard() {
               ₦{totalPendingAmount.toLocaleString()}
             </div>
             <p className="text-xs text-amber-700 font-semibold mt-1 flex items-center gap-1">
-              <AlertCircle size={13} /> {pendingCount} unpaid invoices
+              <AlertCircle size={13} /> {unpaidInvoiceCount} invoices with a balance
             </p>
           </div>
         </div>
@@ -505,7 +556,7 @@ export default function PaymentManagementDashboard() {
                           <p className="text-[11px] text-slate-500 line-clamp-1">{p.description || "Invoice Fee"}</p>
                         </td>
                         <td className="py-4 px-4 font-black text-slate-900">
-                          ₦{(p.amount || 0).toLocaleString()}
+                          ₦{Number(p.amount || 0).toLocaleString()}<span className="mt-1 block text-[10px] font-medium text-slate-500">Paid ₦{Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()} · Left ₦{Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}</span>
                         </td>
                         <td className="py-4 px-4 text-slate-600">
                           {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}
@@ -529,6 +580,8 @@ export default function PaymentManagementDashboard() {
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {(p.submissions || []).map((submission) => <div key={submission.id} className="flex items-center gap-1">{submission.proofUrl && <a href={submission.proofUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-semibold">Receipt · ₦{Number(submission.amount).toLocaleString()} · {submission.account?.bankName} {submission.account?.accountNumber}</a>}{submission.status === 'SUCCESS' && <button onClick={() => handlePrintReceipt(p, submission)} className="rounded-lg border border-emerald-700 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">Print receipt</button>}{submission.status === 'PENDING' && submission.proofUrl && <><button onClick={() => handleVerifySubmission(submission.id, 'SUCCESS')} className="rounded-lg bg-emerald-700 px-2 py-1.5 text-[10px] font-semibold text-white">Approve</button><button onClick={() => handleVerifySubmission(submission.id, 'FAILED')} className="rounded-lg bg-rose-100 px-2 py-1.5 text-[10px] font-semibold text-rose-700">Decline</button></>}</div>)}
+                            {isSuccess && <button onClick={() => handlePrintReceipt(p)} className="rounded-lg border border-emerald-700 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">Print invoice receipt</button>}
                             {p.status === 'PENDING' && ['OPAY', 'MONNIFY'].includes(p.paymentProvider || '') && <button disabled={isVerifying} onClick={async () => { setIsVerifying(true); try { await apiFetch(`/payments/${p.id}/${p.paymentProvider === 'MONNIFY' ? 'monnify' : 'opay'}-sync`, { method: 'POST' }); await loadData(); } catch (e) { alert(e instanceof Error ? e.message : 'Could not verify provider payment'); } finally { setIsVerifying(false); } }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Check provider</button>}
                             {p.proofUrl && (
                               <button
@@ -638,8 +691,8 @@ export default function PaymentManagementDashboard() {
               <h2 className="text-lg font-bold text-slate-900">Firm Bank Accounts</h2>
               <p className="text-xs text-slate-500">Official bank accounts displayed to clients for legal fee transfers.</p>
             </div>
-            <button
-              onClick={() => setIsAccountModalOpen(true)}
+                <button
+                  onClick={() => { setEditingAccountId(null); setAccountForm({ bankName: '', accountName: '', accountNumber: '', currency: 'NGN', label: '' }); setIsAccountModalOpen(true); }}
               className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Plus size={16} /> Add Bank Account
@@ -659,6 +712,7 @@ export default function PaymentManagementDashboard() {
                 <p className="font-mono text-xl font-black text-emerald-900 tracking-wider my-2">{acc.accountNumber}</p>
                 <p className="text-xs font-semibold text-slate-600">{acc.accountName}</p>
                 {acc.label && <p className="text-[11px] text-slate-400 mt-1 italic">{acc.label}</p>}
+                <button onClick={() => { setEditingAccountId(acc.id); setAccountForm({ bankName: acc.bankName, accountName: acc.accountName, accountNumber: acc.accountNumber, currency: acc.currency, label: acc.label || '' }); setIsAccountModalOpen(true); }} className="mt-4 text-xs font-bold text-emerald-800">Edit account</button>
               </div>
             ))}
           </div>
@@ -667,7 +721,7 @@ export default function PaymentManagementDashboard() {
 
       {/* MODAL: Generate Payment Request / Invoice */}
       <AnimatePresence>
-        {isRequestModalOpen && user?.role === 'ADMIN' && (
+        {isRequestModalOpen && canManagePayments && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -832,7 +886,7 @@ export default function PaymentManagementDashboard() {
                     <Landmark size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900">Add Firm Bank Account</h2>
+                    <h2 className="text-lg font-black text-slate-900">{editingAccountId ? 'Edit Firm Bank Account' : 'Add Firm Bank Account'}</h2>
                     <p className="text-xs text-slate-500">Provide bank details for client fee deposits</p>
                   </div>
                 </div>
@@ -920,7 +974,7 @@ export default function PaymentManagementDashboard() {
                     disabled={isSubmittingAccount}
                     className="px-6 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-900/20 disabled:opacity-50 cursor-pointer"
                   >
-                    {isSubmittingAccount ? "Saving..." : "Add Account"}
+                    {isSubmittingAccount ? "Saving..." : editingAccountId ? "Save changes" : "Add Account"}
                   </button>
                 </div>
               </form>

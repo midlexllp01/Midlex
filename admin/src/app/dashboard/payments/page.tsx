@@ -4,6 +4,8 @@ import { apiFetch, getApiBaseUrl } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import DashboardSearchBar from '@/components/Dashboard/DashboardSearchBar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Payment {
   id: string;
@@ -35,6 +37,9 @@ interface Payment {
   opayOrderNo?: string | null;
   opayStatus?: string | null;
   opayChannel?: string | null;
+  paidAmount?: number;
+  remainingAmount?: number;
+  submissions?: Array<{ id: string; amount: number; status: string; proofUrl?: string | null; submittedAt?: string; verifiedAt?: string | null; account?: PaymentAccount | null }>;
 }
 
 interface PaymentAccount {
@@ -44,6 +49,7 @@ interface PaymentAccount {
   accountName: string;
   accountNumber: string;
   currency: string;
+  isActive?: boolean;
 }
 
 import MonthPickerFilter, { getCurrentMonthStr, isItemInMonth } from '@/components/Dashboard/MonthPickerFilter';
@@ -59,6 +65,7 @@ export default function PaymentsPage() {
   const [isAccountsLoading, setIsAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [newAccount, setNewAccount] = useState({
     label: '',
     bankName: '',
@@ -108,7 +115,7 @@ export default function PaymentsPage() {
 
   const loadCasesForRequest = async () => {
     if (!user) return;
-    if (user.role !== 'ADMIN') return;
+    if (!['ADMIN', 'ACCOUNTANT'].includes(user.role)) return;
 
     setIsCasesLoading(true);
     setCasesError(null);
@@ -172,14 +179,47 @@ export default function PaymentsPage() {
   });
 
   const totalPaid = filteredPayments
-    .filter((p) => p.status === 'SUCCESS')
-    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    .reduce((sum, p) => sum + Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)), 0);
 
   const outstanding = filteredPayments
-    .filter((p) => p.status !== 'SUCCESS')
-    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    .reduce((sum, p) => sum + Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)), 0);
 
   const currency = filteredPayments.find((p) => !!p.currency)?.currency || 'NGN';
+
+  const downloadPaymentHistoryPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(17);
+    doc.text('MIDLEX LLP · PAYMENT HISTORY', 14, 16);
+    doc.setFontSize(9);
+    doc.text(`Generated ${new Date().toLocaleString()} · ${filteredPayments.length} records`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [['Date', 'Reference', 'Client', 'Matter', 'Invoice', 'Paid', 'Remaining', 'Status']],
+      body: filteredPayments.map((p) => [
+        new Date(p.createdAt).toLocaleDateString(), p.txRef, p.client?.name || 'Client', p.case?.title || p.description || 'Legal services',
+        `${p.currency} ${Number(p.amount).toLocaleString()}`,
+        `${p.currency} ${Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()}`,
+        `${p.currency} ${Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}`, p.status,
+      ]),
+      styles: { fontSize: 8 }, headStyles: { fillColor: [27, 77, 46] },
+    });
+    doc.save(`midlex-payment-history-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handlePrintSubmissionReceipt = (p: Payment, submission: NonNullable<Payment['submissions']>[number]) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    if (!printWindow) return alert('Please allow popups to print the receipt.');
+    const rows: Array<[string, string]> = [
+      ['Receipt reference', `${p.txRef}-${submission.id.slice(-8)}`], ['Invoice reference', p.txRef],
+      ['Client', p.client?.name || 'Client'], ['Email', p.client?.email || '—'], ['Matter', p.case?.title || p.description || 'Legal services'],
+      ['Payment amount', `${p.currency} ${Number(submission.amount).toLocaleString()}`],
+      ['Paid to', submission.account ? `${submission.account.bankName} · ${submission.account.accountName} · ${submission.account.accountNumber}` : 'Bank transfer'],
+      ['Approved', submission.verifiedAt ? new Date(submission.verifiedAt).toLocaleString() : 'Confirmed'],
+    ];
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char));
+    printWindow.document.write(`<!doctype html><html><head><title>Payment receipt</title><style>body{font:15px Arial,sans-serif;color:#183c2c;margin:48px}h1{margin-bottom:4px}small{color:#64748b}.box{border:1px solid #d7e2d8;border-radius:12px;padding:20px;margin-top:24px}p{padding:10px 0;border-bottom:1px solid #edf0ed;display:flex;justify-content:space-between;gap:20px}b{text-align:right}@media print{body{margin:20mm}}</style></head><body><h1>MIDLEX LLP</h1><small>Payment receipt · Approved transfer</small><div class="box">${rows.map(([label, value]) => `<p><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></p>`).join('')}</div><small>Generated ${escapeHtml(new Date().toLocaleString())}</small><script>window.onload=()=>window.print()</script></body></html>`);
+    printWindow.document.close();
+  };
 
   const startOpayCheckout = async (paymentId: string) => {
     setIsStartingCheckoutByPayment((p) => ({ ...p, [paymentId]: true }));
@@ -235,7 +275,7 @@ export default function PaymentsPage() {
 
   const createPaymentRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user?.role !== 'ADMIN') return;
+    if (!['ADMIN', 'ACCOUNTANT'].includes(user?.role || '')) return;
     const c = cases.find((x) => x.id === requestForm.caseId);
     if (!c) return alert('Select a case');
     try {
@@ -262,8 +302,8 @@ export default function PaymentsPage() {
   const createAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiFetch('/payment-accounts', {
-        method: 'POST',
+      await apiFetch(editingAccountId ? `/payment-accounts/${editingAccountId}` : '/payment-accounts', {
+        method: editingAccountId ? 'PATCH' : 'POST',
         body: JSON.stringify({
           label: newAccount.label || undefined,
           bankName: newAccount.bankName,
@@ -273,10 +313,19 @@ export default function PaymentsPage() {
         }),
       });
       setNewAccount({ label: '', bankName: '', accountName: '', accountNumber: '', currency: 'NGN' });
+      setEditingAccountId(null);
+      setIsAccountsModalOpen(false);
       await loadAccounts();
     } catch (e: any) {
       alert(e?.message || 'Failed to add account');
     }
+  };
+
+  const reviewSubmission = async (submissionId: string, status: 'SUCCESS' | 'FAILED') => {
+    try {
+      await apiFetch(`/payments/submissions/${submissionId}/verify`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await load();
+    } catch (error) { alert(error instanceof Error ? error.message : 'Could not review receipt'); }
   };
 
   const verifyPayment = async () => {
@@ -667,6 +716,7 @@ export default function PaymentsPage() {
 
     return (
       <div className="space-y-4">
+        {(p.submissions || []).map((submission) => <div key={submission.id} className={`flex flex-wrap items-center gap-2 rounded-xl border p-3 text-xs ${submission.status === 'PENDING' ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white'}`}>{submission.proofUrl && <a href={submission.proofUrl} target="_blank" rel="noreferrer" className="font-semibold text-primary underline">View {p.currency} {Number(submission.amount).toLocaleString()} receipt · {submission.account?.bankName} {submission.account?.accountNumber}</a>}{submission.status === 'SUCCESS' && <button onClick={() => handlePrintSubmissionReceipt(p, submission)} className="rounded-lg border border-primary px-3 py-1.5 font-bold text-primary">Print receipt</button>}{submission.status === 'PENDING' && ['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && <><button onClick={() => reviewSubmission(submission.id, 'SUCCESS')} className="rounded-lg bg-emerald-700 px-3 py-1.5 font-bold text-white">Approve</button><button onClick={() => reviewSubmission(submission.id, 'FAILED')} className="rounded-lg bg-rose-100 px-3 py-1.5 font-bold text-rose-700">Decline</button></>}</div>)}
         {/* Receipt View if uploaded */}
         <div>
           {p.proofUrl ? (
@@ -804,7 +854,7 @@ export default function PaymentsPage() {
         )}
 
         {/* Admin Verification action */}
-        {user?.role === 'ADMIN' && p.status === 'PENDING' && p.proofUrl && p.paymentProvider !== 'OPAY' && (
+        {['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && p.status === 'PENDING' && p.proofUrl && p.paymentProvider !== 'OPAY' && (
           <button
             type="button"
             onClick={() => setVerifyTarget(p)}
@@ -844,7 +894,8 @@ export default function PaymentsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold text-primary">Financial History</h2>
         <div className="flex gap-3">
-          {user?.role === 'ADMIN' && (
+          <button onClick={downloadPaymentHistoryPdf} className="rounded-2xl border border-primary px-5 py-4 font-bold text-primary">Download history PDF</button>
+          {['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && (
             <button
               onClick={() => setIsRequestModalOpen(true)}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-white shadow-xl shadow-primary/20 transition-all hover:bg-primary/90 sm:w-auto sm:px-8"
@@ -852,6 +903,7 @@ export default function PaymentsPage() {
               Create Payment Request
             </button>
           )}
+          {['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && <button onClick={() => { setEditingAccountId(null); setNewAccount({ label: '', bankName: '', accountName: '', accountNumber: '', currency: 'NGN' }); setIsAccountsModalOpen(true); }} className="rounded-2xl border border-primary px-5 py-4 font-bold text-primary">Payment accounts & setup</button>}
         </div>
       </div>
 
@@ -910,6 +962,8 @@ export default function PaymentsPage() {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Amount</p>
                 <p className="mt-1 break-words font-bold text-primary">{p.currency} {p.amount.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-emerald-800">Paid {p.currency} {Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()}</p>
+                <p className="text-xs text-amber-800">Remaining {p.currency} {Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}</p>
               </div>
               {user?.role === 'ADMIN' && (
                 <div>
@@ -993,7 +1047,7 @@ export default function PaymentsPage() {
                 </td>
                 <td className="px-8 py-6 font-bold text-primary">{p.case.title}</td>
                 <td className="px-8 py-6 font-bold text-primary">
-                  {p.currency} {p.amount.toLocaleString()}
+                  {p.currency} {p.amount.toLocaleString()}<span className="mt-1 block text-[10px] font-medium text-gray-500">Paid {p.currency} {Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()} · Remaining {p.currency} {Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}</span>
                 </td>
                 <td className="px-8 py-6">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -1034,7 +1088,26 @@ export default function PaymentsPage() {
       </div>
 
       <AnimatePresence>
-        {isRequestModalOpen && user?.role === 'ADMIN' && (
+        {isAccountsModalOpen && ['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAccountsModalOpen(false)} className="absolute inset-0 bg-primary/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} className="relative max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+              <div className="mb-5 flex items-center justify-between"><div><h3 className="text-xl font-bold text-primary">Payment accounts & setup</h3><p className="mt-1 text-sm text-gray-500">These receiving accounts are shared with the Finance portal.</p></div><button onClick={() => setIsAccountsModalOpen(false)} className="rounded-xl border px-3 py-2 text-sm">Close</button></div>
+              <div className="mb-6 grid gap-3 sm:grid-cols-2">{accounts.map((account) => <div key={account.id} className="rounded-2xl border border-gray-200 p-4"><p className="font-bold text-primary">{account.bankName}</p><p className="mt-1 font-mono text-sm">{account.accountNumber}</p><p className="text-xs text-gray-500">{account.accountName} · {account.currency}</p><button onClick={() => { setEditingAccountId(account.id); setNewAccount({ label: account.label || '', bankName: account.bankName, accountName: account.accountName, accountNumber: account.accountNumber, currency: account.currency }); }} className="mt-3 text-xs font-bold text-emerald-800">Edit account</button></div>)}</div>
+              <form onSubmit={createAccount} className="grid gap-3 sm:grid-cols-2">
+                <input aria-label="Bank name" placeholder="Bank name" value={newAccount.bankName} onChange={(event) => setNewAccount({ ...newAccount, bankName: event.target.value })} className="rounded-xl border p-3" required />
+                <input aria-label="Account name" placeholder="Account name" value={newAccount.accountName} onChange={(event) => setNewAccount({ ...newAccount, accountName: event.target.value })} className="rounded-xl border p-3" required />
+                <input aria-label="Account number" placeholder="Account number" value={newAccount.accountNumber} onChange={(event) => setNewAccount({ ...newAccount, accountNumber: event.target.value })} className="rounded-xl border p-3" required />
+                <input aria-label="Account label" placeholder="Label (optional)" value={newAccount.label} onChange={(event) => setNewAccount({ ...newAccount, label: event.target.value })} className="rounded-xl border p-3" />
+                <div className="flex items-center gap-3 sm:col-span-2"><select value={newAccount.currency} onChange={(event) => setNewAccount({ ...newAccount, currency: event.target.value })} className="rounded-xl border p-3"><option value="NGN">NGN</option><option value="USD">USD</option></select><button type="submit" className="flex-1 rounded-xl bg-primary p-3 font-bold text-white">{editingAccountId ? 'Save account changes' : 'Add receiving account'}</button></div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isRequestModalOpen && ['ADMIN', 'ACCOUNTANT'].includes(user?.role || '') && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}

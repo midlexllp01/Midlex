@@ -13,6 +13,7 @@ type ModelName =
   | 'document'
   | 'message'
   | 'payment'
+  | 'paymentSubmission'
   | 'paymentAccount'
   | 'passwordReset'
   | 'notification'
@@ -45,6 +46,7 @@ const COLLECTIONS: Record<ModelName, string> = {
   document: 'documents',
   message: 'messages',
   payment: 'payments',
+  paymentSubmission: 'paymentSubmissions',
   paymentAccount: 'paymentAccounts',
   passwordReset: 'passwordResets',
   notification: 'notifications',
@@ -77,6 +79,7 @@ export class PrismaService implements OnModuleInit {
   document = this.model('document');
   message = this.model('message');
   payment = this.model('payment');
+  paymentSubmission = this.model('paymentSubmission');
   paymentAccount = this.model('paymentAccount');
   passwordReset = this.model('passwordReset');
   notification = this.model('notification');
@@ -147,6 +150,32 @@ export class PrismaService implements OnModuleInit {
 
   constructor() {
     this.loadLocalStore();
+  }
+
+  async restoreRows(name: string, rows: any[]) {
+    const collection = name as ModelName;
+    const collectionName = COLLECTIONS[collection];
+    if (!collectionName) throw new Error('Unsupported backup collection');
+    const cleanRows: any[] = rows.map((row) => this.clean(row));
+    if (this.isOffline) {
+      if (!this.localStore[collectionName]) this.localStore[collectionName] = {};
+      for (const row of cleanRows) this.localStore[collectionName][row.id] = this.toLocal(row);
+      this.saveLocalStore();
+      return;
+    }
+    if (this.isPostgres && this.prismaClient) {
+      for (let start = 0; start < cleanRows.length; start += 250) {
+        const statements = cleanRows.slice(start, start + 250).map((row) => this.prismaClient!.$executeRawUnsafe(
+          `INSERT INTO midlex_store (collection, id, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW()) ON CONFLICT (collection, id) DO UPDATE SET data = $3::jsonb, updated_at = NOW()`,
+          collectionName, row.id, JSON.stringify(this.toLocal(row)),
+        ));
+        await this.prismaClient.$transaction(statements);
+      }
+      return;
+    }
+    const writer = this.db.bulkWriter();
+    for (const row of cleanRows) writer.set(this.col(collection).doc(row.id), this.toFirestore(row));
+    await writer.close();
   }
 
   async onModuleInit() {
@@ -553,6 +582,7 @@ export class PrismaService implements OnModuleInit {
         });
       }
       if (name === 'payment') out = await this.includePayment(out, include);
+      if (name === 'paymentSubmission') out = await this.includePaymentSubmission(out, include);
       if (name === 'courtDate' && include.case) {
         out.case = await this.findUnique('case', {
           where: { id: out.caseId },
@@ -597,6 +627,12 @@ export class PrismaService implements OnModuleInit {
         where: { caseId: out.id },
         include: include.messages.include,
         orderBy: { createdAt: 'asc' },
+      });
+    }
+    if (include.payments) {
+      out.payments = await this.findMany('payment', {
+        where: { caseId: out.id },
+        include: include.payments.include,
       });
     }
     if (include.courtDates) {
@@ -644,11 +680,29 @@ export class PrismaService implements OnModuleInit {
           })
         : null;
     }
+    if (include.submissions) {
+      out.submissions = await this.findMany('paymentSubmission', {
+        where: { paymentId: out.id },
+        include: include.submissions.include,
+        orderBy: include.submissions.orderBy?.submittedAt ? { submittedAt: include.submissions.orderBy.submittedAt } : undefined,
+      });
+    }
+    return out;
+  }
+
+  private async includePaymentSubmission(row: any, include: any) {
+    const out = { ...row };
+    if (include.account) out.account = out.accountId ? await this.findUnique('paymentAccount', { where: { id: out.accountId }, select: include.account.select }) : null;
+    if (include.verifiedBy) out.verifiedBy = out.verifiedById ? await this.findUnique('user', { where: { id: out.verifiedById }, select: include.verifiedBy.select }) : null;
+    if (include.payment) out.payment = await this.findUnique('payment', { where: { id: out.paymentId }, include: include.payment.include });
     return out;
   }
 
   private matchesWhere(row: any, where: any): boolean {
     return Object.entries(where).every(([key, expected]) => {
+      if (key === 'OR') return Array.isArray(expected) && expected.some((condition) => this.matchesWhere(row, condition));
+      if (key === 'AND') return Array.isArray(expected) && expected.every((condition) => this.matchesWhere(row, condition));
+      if (key === 'NOT') return Array.isArray(expected) ? expected.every((condition) => !this.matchesWhere(row, condition)) : !this.matchesWhere(row, expected);
       if (key === 'case') return this.matchesCaseRelation(row, expected);
       return this.matchesValue(row[key], expected);
     });
@@ -670,6 +724,8 @@ export class PrismaService implements OnModuleInit {
     }
 
     if (expected.notIn) return !expected.notIn.includes(value);
+    if ('not' in expected && (expected as any).not === null && (value === null || value === undefined)) return false;
+    if ((expected as any).in) return (expected as any).in.includes(value);
     if (expected.gte !== undefined && this.asTime(value) < this.asTime(expected.gte)) {
       return false;
     }

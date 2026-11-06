@@ -6,6 +6,15 @@ export class PaymentAccountsService {
   constructor(private prisma: PrismaService) {}
 
   async listActive() {
+    for (const account of [
+      { label: 'Zenith · Midlex consult', bankName: 'Zenith', accountName: 'Midlex consult llp', accountNumber: '1229406572' },
+      { label: 'Moniepoint · Midlex Analytics', bankName: 'Moniepoint', accountName: 'Midlex Aalytics', accountNumber: '5556693093' },
+    ]) {
+      const match = await this.prisma.paymentAccount.findMany({ where: { accountNumber: account.accountNumber }, take: 1 });
+      if (!match.length) {
+        await this.prisma.paymentAccount.create({ data: { ...account, currency: 'NGN', isActive: true } });
+      }
+    }
     return this.prisma.paymentAccount.findMany({
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },

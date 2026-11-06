@@ -234,7 +234,7 @@ export default function Home() {
                     Launch Mobile App ↗
                   </a>
                   <a
-                    href="https://drive.google.com/file/d/1WPu4QDjyHalkAYdAPHH2CV1zIe4WJbkq/view?usp=sharing"
+                    href="https://drive.google.com/file/d/1AODQoz6jLDatGxmVNC41cdU6sZLSxhFO/view?usp=drive_link"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full py-2 bg-white/10 text-white/80 font-medium rounded-xl text-xs hover:bg-white/20 transition-all"

@@ -64,7 +64,7 @@ export class PaymentsController {
 
   @Post('request')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, ((Role as any).ACCOUNTANT || 'ACCOUNTANT') as any)
   createRequest(@Body() body: any, @Request() req: any) {
     return this.paymentsService.createPaymentRequest({
       amount: body.amount,
@@ -139,6 +139,31 @@ export class PaymentsController {
       baseUrl,
       clientId: req.user.id,
     });
+  }
+
+  @Post(':id/submissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CLIENT)
+  @UseInterceptors(FileInterceptor('file'))
+  submitPartialProof(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Body() body: any, @Request() req: any) {
+    if (!file) throw new BadRequestException('Receipt file is required');
+    return this.paymentsService.submitPartialProof({
+      paymentId: id,
+      clientId: req.user.id,
+      file,
+      baseUrl: `${req.protocol}://${req.get('host')}`,
+      amount: Number(body.amount),
+      accountId: String(body.accountId || ''),
+    });
+  }
+
+  @Patch('submissions/:id/verify')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, ((Role as any).ACCOUNTANT || 'ACCOUNTANT') as any)
+  verifySubmission(@Param('id') id: string, @Body() body: any, @Request() req: any) {
+    const status = body.status as string;
+    if (!status || !['SUCCESS', 'FAILED'].includes(status)) throw new ForbiddenException('Invalid verification status');
+    return this.paymentsService.verifySubmission({ submissionId: id, verifiedById: req.user.id, status: status as 'SUCCESS' | 'FAILED', note: body.note });
   }
 
   @Patch(':id/verify')

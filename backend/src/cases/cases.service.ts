@@ -42,7 +42,7 @@ export class CasesService {
         client: true,
         lawyer: true,
         documents: true,
-        messages: { include: { sender: true } },
+        messages: { include: { sender: { select: { id: true, name: true, role: true } } } },
         courtDates: true,
         timeline: true,
       },
@@ -312,7 +312,7 @@ export class CasesService {
   async findByClient(clientId: string): Promise<Case[]> {
     return this.prisma.case.findMany({
       where: { clientId },
-      include: { lawyer: true, messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
+      include: { client: { select: { id: true, name: true } }, lawyer: true, messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
     });
   }
 
@@ -346,19 +346,20 @@ export class CasesService {
       include: {
         client: true,
         lawyer: true,
-        payments: true,
+        payments: { include: { submissions: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return cases.map((c: any) => {
       const payments = c.payments || [];
-      const totalPaid = payments
-        .filter((p: any) => p.status === 'SUCCESS')
-        .reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
-      const totalPending = payments
-        .filter((p: any) => p.status === 'PENDING')
-        .reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
+      const totalPaid = payments.reduce((acc: number, p: any) => {
+        if (p.submissions?.length) return acc + p.submissions.filter((item: any) => item.status === 'SUCCESS').reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+        return acc + (p.status === 'SUCCESS' ? Number(p.amount || 0) : 0);
+      }, 0);
+      const totalPending = payments.reduce((acc: number, p: any) => acc + Math.max(0, Number(p.amount || 0) - (p.submissions?.length
+        ? p.submissions.filter((item: any) => item.status === 'SUCCESS').reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0)
+        : p.status === 'SUCCESS' ? Number(p.amount || 0) : 0)), 0);
 
       return {
         id: c.id,

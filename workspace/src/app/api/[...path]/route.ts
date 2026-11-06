@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const allowed = /^(login|google|me|logout|password|account|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+|chat(?:\/[a-zA-Z0-9-]+){0,3})$/;
+const allowed = /^(login|google|me|logout|password|account|users(?:\/[a-zA-Z0-9-]+)?|launch\/[a-z-]+|chat(?:\/[a-zA-Z0-9-]+){0,3}|backup\/(export|restore))$/;
 const sessionCookie = 'midlex_workspace';
 const sessionMaxAge = 60 * 60 * 24 * 400;
 
@@ -37,7 +37,13 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       ...(request.method !== 'GET' ? { body: await request.text() } : {}),
     });
     const data = await upstream.json();
-    const { token: issuedToken, ...publicData } = data;
+    const isObject = data !== null && typeof data === 'object' && !Array.isArray(data);
+    const issuedToken = isObject ? data.token : undefined;
+    const publicData = Array.isArray(data)
+      ? data
+      : isObject
+        ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'token'))
+        : data;
     const response = NextResponse.json(publicData, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } });
 
     const renewedToken = ['login', 'google', 'password'].includes(path) ? issuedToken : token;

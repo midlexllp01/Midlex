@@ -47,6 +47,9 @@ type CreateNotificationInput = {
   link?: string;
   href?: string;
   createdById?: string;
+  entityType?: string;
+  entityId?: string;
+  metadata?: Record<string, any>;
 };
 
 type BroadcastInput = {
@@ -106,6 +109,9 @@ export class NotificationsService {
         type: input.type || 'INFO',
         link: input.link || input.href,
         href: input.href || input.link,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadata: input.metadata,
         isRead: false,
         readAt: null,
         createdById: input.createdById,
@@ -416,6 +422,10 @@ export class NotificationsService {
           message: payload.message,
           type: payload.type,
           link: payload.href,
+          href: payload.href,
+          entityType: payload.entityType,
+          entityId: payload.entityId,
+          metadata: payload.metadata,
         }),
       ),
     );

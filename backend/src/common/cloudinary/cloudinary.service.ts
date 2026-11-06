@@ -5,6 +5,10 @@ import * as streamifier from 'streamifier';
 
 @Injectable()
 export class CloudinaryService {
+  async deleteFile(publicId: string) {
+    return cloudinary.uploader.destroy(publicId, { resource_type: 'auto' });
+  }
+
   uploadFile(
     file: Express.Multer.File,
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {

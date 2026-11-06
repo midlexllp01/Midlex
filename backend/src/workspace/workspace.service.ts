@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, OnModuleInit, Serv
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { gunzipSync } from 'zlib';
 import { getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { PrismaService } from '../prisma/prisma.service';
@@ -78,6 +79,13 @@ export const PRODUCTION_ENTRY_PATHS: Record<string, { admin: string; user: strin
   'ai': { admin: '/', user: '/' },
 };
 
+const BACKUP_COLLECTIONS = [
+  'user', 'case', 'document', 'message', 'payment', 'paymentSubmission', 'paymentAccount',
+  'notification', 'courtDate', 'inquiry', 'caseTimeline', 'directory', 'property',
+  'workspaceUser', 'workspaceAudit', 'workspaceConversation', 'workspaceMessage',
+  'workspaceBroadcast', 'workspaceBroadcastRecipient',
+] as const;
+
 @Injectable()
 export class WorkspaceService implements OnModuleInit {
   private jwt = new JwtService();
@@ -113,6 +121,69 @@ export class WorkspaceService implements OnModuleInit {
 
   safe(user: any) {
     return { id: user.id, name: user.name, email: user.email, phone: user.phone || '', jobTitle: user.jobTitle || '', role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, grants: user.grants || {}, createdAt: user.createdAt };
+  }
+
+  async exportBackup(actor: any) {
+    this.manager(actor);
+    const collections: Record<string, any[]> = {};
+    for (const name of BACKUP_COLLECTIONS) collections[name] = await this.db[name].findMany();
+    return {
+      format: 'midlex-workspace-backup',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      scope: ['Midlex LLP legal workspace', 'Midlex Developer/Admin Workspace', 'Workspace chat and audit history'],
+      note: 'Documents and receipt files stored by external providers remain referenced by their saved URLs; this archive contains database records and chat history.',
+      collections,
+    };
+  }
+
+  async restoreBackup(actor: any, body: any) {
+    this.manager(actor);
+    let backup = body?.backup;
+    if (typeof body?.compressedBackup === 'string' && body.compressedBackup.length <= 20 * 1024 * 1024) {
+      try {
+        const json = gunzipSync(Buffer.from(body.compressedBackup, 'base64'), { maxOutputLength: 100 * 1024 * 1024 }).toString('utf8');
+        backup = JSON.parse(json);
+      } catch { throw new BadRequestException('The compressed backup could not be read'); }
+    }
+    if (body?.confirmation !== 'RESTORE_MIDLEX_BACKUP' || backup?.format !== 'midlex-workspace-backup' || backup?.version !== 1 || !backup?.collections || typeof backup.collections !== 'object' || Array.isArray(backup.collections)) {
+      throw new BadRequestException('Select a valid Midlex backup and confirm the restore operation');
+    }
+
+    const allowed = new Set<string>(BACKUP_COLLECTIONS);
+    let total = 0;
+    for (const [name, rows] of Object.entries(backup.collections)) {
+      if (!allowed.has(name) || !Array.isArray(rows)) throw new BadRequestException('Backup contains an unsupported collection');
+      total += rows.length;
+      if (total > 100000) throw new BadRequestException('Backup is too large to restore in one operation');
+      if (rows.some((row: any) => !row || typeof row !== 'object' || Array.isArray(row) || typeof row.id !== 'string' || !row.id || row.id.length > 200)) {
+        throw new BadRequestException(`Backup contains an invalid record in ${name}`);
+      }
+    }
+
+    const reviveDates = (value: any): any => {
+      if (Array.isArray(value)) return value.map(reviveDates);
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value)) return new Date(value);
+      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, reviveDates(item)]));
+      return value;
+    };
+
+    let inserted = 0;
+    let updated = 0;
+    let protectedAccounts = 0;
+    for (const name of BACKUP_COLLECTIONS) {
+      const rawRows = backup.collections[name] || [];
+      // Keep the signed-in owner account intact so a restore cannot lock out its operator.
+      const rows = rawRows.filter((row: any) => !(name === 'workspaceUser' && row.id === actor.id)).map(reviveDates);
+      if (name === 'workspaceUser') protectedAccounts += rawRows.length - rows.length;
+      if (!rows.length) continue;
+      const existingIds = new Set((await this.db[name].findMany()).map((row: any) => row.id));
+      updated += rows.filter((row: any) => existingIds.has(row.id)).length;
+      inserted += rows.filter((row: any) => !existingIds.has(row.id)).length;
+      await this.db.restoreRows(name, rows);
+    }
+    await this.audit(actor.id, 'BACKUP_RESTORED', `inserted:${inserted},updated:${updated}`);
+    return { ok: true, inserted, updated, protectedAccounts, restoredAt: new Date().toISOString(), mode: 'merge-by-record-id' };
   }
 
   private sign(payload: any) {
@@ -239,7 +310,7 @@ export class WorkspaceService implements OnModuleInit {
   async onboard(actor: any, body: any) {
     this.manager(actor);
     const { name, email, password, role } = body;
-    if (typeof name !== 'string' || !name.trim() || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof password !== 'string' || password.length < 12 || !['ADMIN', 'STAFF'].includes(role)) throw new BadRequestException('Provide a name, valid email, 12-character temporary password, and admin or staff role');
+    if (typeof name !== 'string' || !name.trim() || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || typeof password !== 'string' || password.length < 8 || !['ADMIN', 'STAFF'].includes(role)) throw new BadRequestException('Provide a name, valid email, 8-character temporary password, and admin or staff role');
     if (actor.role === 'ADMIN' && role !== 'STAFF') throw new ForbiddenException('Workspace admins can only onboard staff');
     const normalized = email.trim().toLowerCase();
     if (await this.db.workspaceUser.findUnique({ where: { email: normalized } })) throw new BadRequestException('An account already exists for this email');
@@ -254,12 +325,20 @@ export class WorkspaceService implements OnModuleInit {
     const target = await this.db.workspaceUser.findUnique({ where: { id } });
     if (!target || target.role === 'DEVELOPER') throw new ForbiddenException('The owner account cannot be changed here');
     this.manageableStaff(actor, target);
+    const name = body.name === undefined ? undefined : typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+    const email = body.email === undefined ? undefined : typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (name !== undefined && (name.length < 2 || name.length > 120)) throw new BadRequestException('Full name must be between 2 and 120 characters');
+    if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('Enter a valid email address');
+    if (email !== undefined && email !== target.email) {
+      const existing = await this.db.workspaceUser.findUnique({ where: { email } });
+      if (existing && existing.id !== id) throw new BadRequestException('An account already exists for this email');
+    }
     if (body.role !== undefined && !['ADMIN', 'STAFF'].includes(body.role)) throw new BadRequestException('Invalid workspace role');
     if (actor.role === 'ADMIN' && body.role !== undefined && body.role !== 'STAFF') throw new ForbiddenException('Workspace admins cannot promote staff to workspace admin');
     if (body.active !== undefined && typeof body.active !== 'boolean') throw new BadRequestException('Invalid account status');
-    if (body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 12)) throw new BadRequestException('Temporary password must contain at least 12 characters');
-    const changes = { ...(body.role ? { role: body.role } : {}), ...(body.active !== undefined ? { active: body.active } : {}), ...(body.grants !== undefined ? { grants: this.managedGrants(actor, body.grants) } : {}), ...(body.password ? { password: await bcrypt.hash(body.password, 12), mustChangePassword: true } : {}) };
-    const user = await this.db.mutateWorkspaceUser(id, current => ({ ...changes, version: current.version + (body.password || body.active !== undefined && body.active !== current.active ? 1 : 0), accessVersion: (current.accessVersion || 1) + 1 }));
+    if (body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 8)) throw new BadRequestException('Temporary password must contain at least 8 characters');
+    const changes = { ...(name !== undefined ? { name } : {}), ...(email !== undefined ? { email } : {}), ...(body.role ? { role: body.role } : {}), ...(body.active !== undefined ? { active: body.active } : {}), ...(body.grants !== undefined ? { grants: this.managedGrants(actor, body.grants) } : {}), ...(body.password ? { password: await bcrypt.hash(body.password, 12), mustChangePassword: true } : {}) };
+    const user = await this.db.mutateWorkspaceUser(id, current => ({ ...changes, version: current.version + (body.password || email !== undefined && email !== current.email || body.active !== undefined && body.active !== current.active ? 1 : 0), accessVersion: (current.accessVersion || 1) + 1 }));
     await this.audit(actor.id, 'ACCESS_UPDATED', id);
     return this.safe(user);
   }
@@ -290,7 +369,7 @@ export class WorkspaceService implements OnModuleInit {
   }
 
   async changePassword(user: any, body: any) {
-    if (typeof body.password !== 'string' || body.password.length < 12 || !await bcrypt.compare(body.currentPassword || '', user.password)) throw new BadRequestException('Check your current password and use a new password of at least 12 characters');
+    if (typeof body.password !== 'string' || body.password.length < 8 || !await bcrypt.compare(body.currentPassword || '', user.password)) throw new BadRequestException('Check your current password and use a new password of at least 8 characters');
     if (await bcrypt.compare(body.password, user.password)) throw new BadRequestException('Choose a different password');
     const password = await bcrypt.hash(body.password, 12);
     const updated = await this.db.mutateWorkspaceUser(user.id, current => {

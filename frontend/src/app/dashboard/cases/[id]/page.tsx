@@ -189,7 +189,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="space-y-8">
-          <ChatWidget caseId={caseData.id} status={caseData.status} />
+          <ChatWidget caseId={caseData.id} status={caseData.status} groupName={caseData.client?.name || 'Client matter'} matterTitle={caseData.title} />
           
           <div className="bg-primary p-8 rounded-[40px] text-white">
             <h4 className="text-xl font-bold mb-4 flex items-center gap-2">

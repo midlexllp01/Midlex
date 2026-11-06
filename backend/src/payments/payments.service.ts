@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus, Role } from '@prisma/client';
@@ -30,13 +31,94 @@ type OpayConfig = {
 };
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
     private notificationsService: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    const run = () => void this.cleanupExpiredProofs().catch((error) => console.warn('[Payments] Receipt cleanup failed:', error?.message || error));
+    run();
+    const timer = setInterval(run, 12 * 60 * 60 * 1000);
+    timer.unref?.();
+  }
+
+  private async deleteStoredProof(url: string) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.pathname.includes('/uploads/payments/')) {
+        const filename = path.basename(parsed.pathname);
+        await fs.unlink(path.join(process.cwd(), 'uploads', 'payments', filename)).catch(() => undefined);
+        return;
+      }
+      if (parsed.hostname.includes('firebasestorage.googleapis.com')) {
+        const encoded = parsed.pathname.split('/o/')[1]?.split('/')[0];
+        if (encoded) await this.prisma.storageBucket?.file(decodeURIComponent(encoded)).delete().catch(() => undefined);
+        return;
+      }
+      if (parsed.hostname === 'storage.googleapis.com') {
+        const objectPath = parsed.pathname.split('/').slice(2).join('/');
+        if (objectPath) await this.prisma.storageBucket?.file(decodeURIComponent(objectPath)).delete().catch(() => undefined);
+        return;
+      }
+      if (parsed.hostname.includes('cloudinary.com')) {
+        const uploadPart = parsed.pathname.split('/upload/')[1] || '';
+        const publicId = uploadPart.replace(/^v\d+\//, '').replace(/\.[^/.]+$/, '');
+        if (publicId) await this.cloudinary.deleteFile(publicId);
+      }
+    } catch (error) {
+      console.warn('[Payments] Could not remove expired receipt:', error);
+    }
+  }
+
+  private async cleanupExpiredProofs() {
+    const expired = await this.prisma.paymentSubmission.findMany({
+      where: { proofUrl: { not: null }, proofExpiresAt: { lte: new Date() } },
+      select: { id: true, proofUrl: true },
+      take: 100,
+    });
+    for (const item of expired as any[]) {
+      await this.deleteStoredProof(item.proofUrl);
+      await this.prisma.paymentSubmission.update({ where: { id: item.id }, data: { proofUrl: null, proofType: null } });
+    }
+  }
+
+  private async notifyPaymentStakeholders(payment: { id: string; caseId: string; clientId: string }, payload: { title: string; message: string }) {
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: payment.caseId },
+      select: { lawyerId: true, litigationTeam: true },
+    });
+    const users = await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { role: Role.ADMIN },
+          { role: Role.LAWYER },
+          ...(caseRecord?.litigationTeam ? [{ litigationTeam: caseRecord.litigationTeam }] : []),
+          ...(caseRecord?.lawyerId ? [{ id: caseRecord.lawyerId }] : []),
+          { id: payment.clientId },
+        ],
+      },
+      select: { id: true },
+    });
+    await this.notificationsService.createForRecipients(
+      users.filter((user: any) => user.id !== 'SYSTEM').map((user: any) => ({ recipientUserId: user.id })),
+      { ...payload, type: 'PAYMENT', entityType: 'PAYMENT', entityId: payment.id, href: '/dashboard/payments' },
+    );
+  }
+
+  private async withPaymentBalances<T extends any>(payments: T[]): Promise<T[]> {
+    return Promise.all(payments.map(async (payment: any) => {
+      const submissions = payment.submissions || [];
+      const legacyPaid = payment.status === PaymentStatus.SUCCESS && submissions.length === 0 ? Number(payment.amount || 0) : 0;
+      const paidAmount = legacyPaid + submissions
+        .filter((submission: any) => submission.status === PaymentStatus.SUCCESS)
+        .reduce((sum: number, submission: any) => sum + Number(submission.amount || 0), 0);
+      return { ...payment, paidAmount, remainingAmount: Math.max(0, Number(payment.amount || 0) - paidAmount) };
+    }));
+  }
 
   private getOpayConfig(): OpayConfig {
     const publicKey = this.configService.get<string>('OPAY_PUBLIC_KEY')?.trim();
@@ -253,8 +335,8 @@ export class PaymentsService {
     raw?: any;
   }) {
     const status = (params.opayStatus || '').toUpperCase();
-
-    return this.prisma.payment.update({
+    const previous = await this.prisma.payment.findUnique({ where: { id: params.paymentId }, select: { status: true } });
+    const updated = await this.prisma.payment.update({
       where: { id: params.paymentId },
       data: {
         paymentProvider: 'OPAY',
@@ -270,6 +352,13 @@ export class PaymentsService {
       },
       include: { case: true, client: true, account: true, verifiedBy: true },
     });
+    if (previous?.status !== updated.status && updated.status !== PaymentStatus.PENDING) {
+      await this.notifyPaymentStakeholders(updated, {
+        title: updated.status === PaymentStatus.SUCCESS ? 'Online payment approved' : 'Online payment failed',
+        message: `${updated.currency} ${Number(updated.amount).toLocaleString()} online payment for ${updated.case?.title || 'your legal matter'} is ${String(updated.status).toLowerCase()}.`,
+      });
+    }
+    return updated;
   }
 
   async createPaymentRequest(data: {
@@ -282,8 +371,8 @@ export class PaymentsService {
     dueDate?: Date;
     createdBy: { id: string; role: Role };
   }) {
-    if (data.createdBy.role !== Role.ADMIN) {
-      throw new ForbiddenException('Only admins can create payment requests');
+    if (data.createdBy.role !== Role.ADMIN && String(data.createdBy.role) !== 'ACCOUNTANT') {
+      throw new ForbiddenException('Only admins and finance staff can create payment requests');
     }
     if (!Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0) {
       throw new BadRequestException('Invalid amount');
@@ -330,13 +419,9 @@ export class PaymentsService {
       include: { case: true, client: true, account: true },
     });
 
-    await this.notificationsService.create({
-      recipientId: data.clientId,
+    await this.notifyPaymentStakeholders(payment, {
       title: 'New payment request',
       message: `A payment request of ${data.currency} ${Number(data.amount).toLocaleString()} was created for ${payment.case?.title || 'your case'}.`,
-      link: '/dashboard/payments',
-      type: 'PAYMENT_REQUEST',
-      createdById: data.createdBy.id,
     });
 
     return payment;
@@ -570,26 +655,29 @@ export class PaymentsService {
   }
 
   async findAllByClient(clientId: string) {
-    return this.prisma.payment.findMany({
+    const payments = await this.prisma.payment.findMany({
       where: { clientId },
       orderBy: { createdAt: 'desc' },
-      include: { case: true, account: true },
+      include: { case: true, account: true, submissions: { include: { account: true } } },
     });
+    return this.withPaymentBalances(payments as any[]);
   }
 
   async findAllByCase(caseId: string) {
-    return this.prisma.payment.findMany({
+    const payments = await this.prisma.payment.findMany({
       where: { caseId },
-      include: { client: true, account: true },
+      include: { client: true, account: true, submissions: { include: { account: true } } },
     });
+    return this.withPaymentBalances(payments as any[]);
   }
 
   async findAllForUser(params: { userId: string; role: Role }) {
     if (params.role === Role.ADMIN || String(params.role) === 'ACCOUNTANT') {
-      return this.prisma.payment.findMany({
+      const payments = await this.prisma.payment.findMany({
         orderBy: { createdAt: 'desc' },
-        include: { case: true, client: true, account: true },
+        include: { case: true, client: true, account: true, submissions: { include: { account: true } } },
       });
+      return this.withPaymentBalances(payments as any[]);
     }
 
     if (params.role === Role.LAWYER) {
@@ -600,9 +688,9 @@ export class PaymentsService {
       const caseIds = new Set(cases.map((c: any) => c.id));
       const payments = await this.prisma.payment.findMany({
         orderBy: { createdAt: 'desc' },
-        include: { case: true, client: true, account: true },
+        include: { case: true, client: true, account: true, submissions: { include: { account: true } } },
       });
-      return payments.filter((payment: any) => caseIds.has(payment.caseId));
+      return this.withPaymentBalances(payments.filter((payment: any) => caseIds.has(payment.caseId)) as any[]);
     }
 
     return this.findAllByClient(params.userId);
@@ -674,7 +762,7 @@ export class PaymentsService {
             baseUrl: params.baseUrl,
           }));
 
-    return this.prisma.payment.update({
+    const updated = await this.prisma.payment.update({
       where: { id: params.paymentId },
       data: {
         proofUrl: url,
@@ -683,6 +771,99 @@ export class PaymentsService {
       },
       include: { case: true, client: true, verifiedBy: true },
     });
+    await this.notifyPaymentStakeholders(payment, {
+      title: 'Payment receipt awaiting review',
+      message: `A bank transfer receipt for ${payment.currency} ${Number(payment.amount).toLocaleString()} was submitted for ${payment.caseId ? 'a legal matter' : 'your account'}.`,
+    });
+    return updated;
+  }
+
+  async submitPartialProof(params: {
+    paymentId: string;
+    clientId: string;
+    file: Express.Multer.File;
+    baseUrl: string;
+    amount: number;
+    accountId: string;
+  }) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: params.paymentId },
+      include: { submissions: true, case: true },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.clientId !== params.clientId) throw new ForbiddenException('Not allowed');
+    const paid = payment.status === PaymentStatus.SUCCESS && !payment.submissions.length
+      ? Number(payment.amount)
+      : payment.submissions.filter((item: any) => item.status === PaymentStatus.SUCCESS).reduce((sum: number, item: any) => sum + Number(item.amount), 0);
+    const remaining = Math.max(0, Number(payment.amount) - paid);
+    if (remaining <= 0) throw new BadRequestException('This payment is already fully paid');
+    if (!Number.isFinite(params.amount) || params.amount <= 0 || params.amount > remaining) {
+      throw new BadRequestException(`Enter an amount between 1 and ${remaining}`);
+    }
+    const hasPendingProof = payment.submissions.some((item: any) => item.status === PaymentStatus.PENDING && item.proofUrl);
+    if (hasPendingProof || (payment.proofUrl && payment.status === PaymentStatus.PENDING)) {
+      throw new BadRequestException('A receipt is already waiting for review');
+    }
+    const account = await this.prisma.paymentAccount.findUnique({ where: { id: params.accountId } });
+    if (!account || !account.isActive || account.currency !== payment.currency) {
+      throw new BadRequestException('Select an active receiving account in the invoice currency');
+    }
+    const url = (await this.saveProofToFirebase(params.file)) ||
+      (this.isCloudinaryConfigured()
+        ? (await this.cloudinary.uploadFile(params.file)).secure_url
+        : await this.saveProofToLocal({ file: params.file, baseUrl: params.baseUrl }));
+    const submission = await this.prisma.paymentSubmission.create({
+      data: {
+        paymentId: payment.id,
+        amount: params.amount,
+        accountId: account.id,
+        proofUrl: url,
+        proofType: params.file.mimetype,
+        status: PaymentStatus.PENDING,
+        submittedAt: new Date(),
+        proofExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      include: { account: true },
+    });
+    await this.notifyPaymentStakeholders(payment, {
+      title: 'Payment receipt awaiting review',
+      message: `${payment.clientId === params.clientId ? 'The client' : 'A client'} submitted ${payment.currency} ${params.amount.toLocaleString()} to ${account.bankName} (${account.accountNumber}).`,
+    });
+    return submission;
+  }
+
+  async verifySubmission(params: { submissionId: string; verifiedById: string; status: 'SUCCESS' | 'FAILED'; note?: string }) {
+    const submission = await this.prisma.paymentSubmission.findUnique({
+      where: { id: params.submissionId },
+      include: { payment: { include: { submissions: true, case: true } }, account: true },
+    });
+    if (!submission) throw new NotFoundException('Payment receipt not found');
+    if (!submission.proofUrl) throw new BadRequestException('This receipt has expired or was removed');
+    if (submission.status !== PaymentStatus.PENDING) throw new BadRequestException('Receipt has already been reviewed');
+    const updated = await this.prisma.paymentSubmission.update({
+      where: { id: submission.id },
+      data: { status: params.status as PaymentStatus, verifiedAt: new Date(), verifiedById: params.verifiedById, verificationNote: params.note },
+      include: { account: true },
+    });
+    const successfulSubmissions = await this.prisma.paymentSubmission.findMany({
+      where: { paymentId: submission.paymentId, status: PaymentStatus.SUCCESS },
+    });
+    const successful = successfulSubmissions.reduce((sum: number, item: any) => sum + Number(item.amount), 0);
+    const isPaid = successful >= Number(submission.payment.amount);
+    await this.prisma.payment.update({
+      where: { id: submission.paymentId },
+      data: {
+        status: isPaid ? PaymentStatus.SUCCESS : PaymentStatus.PENDING,
+        ...(isPaid ? { verifiedAt: new Date(), verifiedById: params.verifiedById, paidAt: new Date() } : {}),
+      },
+    });
+    await this.notifyPaymentStakeholders(submission.payment, {
+      title: params.status === 'SUCCESS' ? (isPaid ? 'Payment approved' : 'Part payment approved') : 'Payment receipt declined',
+      message: params.status === 'SUCCESS'
+        ? `${submission.payment.currency} ${Number(submission.amount).toLocaleString()} was approved. ${isPaid ? 'The invoice is fully paid.' : `Remaining balance: ${submission.payment.currency} ${Math.max(0, Number(submission.payment.amount) - successful).toLocaleString()}.`}`
+        : `A receipt for ${submission.payment.currency} ${Number(submission.amount).toLocaleString()} was declined${params.note ? `: ${params.note}` : '.'}`,
+    });
+    return updated;
   }
 
   async verifyManualPayment(params: {
@@ -698,7 +879,7 @@ export class PaymentsService {
     if (!payment.proofUrl) throw new BadRequestException('No proof uploaded');
     if (payment.status !== PaymentStatus.PENDING) throw new BadRequestException('Payment has already been reviewed');
 
-    return this.prisma.payment.update({
+    const updated = await this.prisma.payment.update({
       where: { id: params.paymentId },
       data: {
         status:
@@ -711,5 +892,12 @@ export class PaymentsService {
       },
       include: { case: true, client: true, verifiedBy: true },
     });
+    await this.notifyPaymentStakeholders(payment, {
+      title: params.status === 'SUCCESS' ? 'Payment approved' : 'Payment receipt declined',
+      message: params.status === 'SUCCESS'
+        ? `Your ${payment.currency} ${Number(payment.amount).toLocaleString()} transfer has been approved.`
+        : `Your ${payment.currency} ${Number(payment.amount).toLocaleString()} transfer was declined${params.note ? `: ${params.note}` : '.'}`,
+    });
+    return updated;
   }
 }

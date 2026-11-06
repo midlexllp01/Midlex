@@ -4,6 +4,8 @@ import { apiFetch, getApiBaseUrl } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import DashboardSearchBar from '@/components/Dashboard/DashboardSearchBar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Payment {
   id: string;
@@ -35,6 +37,9 @@ interface Payment {
   opayOrderNo?: string | null;
   opayStatus?: string | null;
   opayChannel?: string | null;
+  paidAmount?: number;
+  remainingAmount?: number;
+  submissions?: Array<{ id: string; amount: number; status: string; proofUrl?: string | null; submittedAt: string; proofExpiresAt: string; verifiedAt?: string | null; account?: PaymentAccount | null }>;
 }
 
 interface PaymentAccount {
@@ -86,6 +91,9 @@ export default function PaymentsPage() {
   const deferredQuery = useDeferredValue(query);
   const [providerSetup, setProviderSetup] = useState<Record<string, { configured: boolean }> | null>(null);
   const [selectedMethodByPayment, setSelectedMethodByPayment] = useState<Record<string, 'opay' | 'transfer'>>({});
+  const [selectedOnlineProviderByPayment, setSelectedOnlineProviderByPayment] = useState<Record<string, 'opay' | 'moniepoint'>>({});
+  const [payAmountByPayment, setPayAmountByPayment] = useState<Record<string, string>>({});
+  const [payAccountByPayment, setPayAccountByPayment] = useState<Record<string, string>>({});
 
   const load = async () => {
     const endpoint = user?.role === 'CLIENT' ? '/payments/my-payments' : '/payments';
@@ -190,6 +198,41 @@ export default function PaymentsPage() {
 
   const currency = filteredPayments.find((p) => !!p.currency)?.currency || 'NGN';
 
+  const downloadPaymentHistoryPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(17);
+    doc.text('MIDLEX LLP · PAYMENT HISTORY', 14, 16);
+    doc.setFontSize(9);
+    doc.text(`Generated ${new Date().toLocaleString()} · ${filteredPayments.length} records`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [['Date', 'Reference', 'Matter', 'Invoice', 'Paid', 'Remaining', 'Status']],
+      body: filteredPayments.map((p) => [
+        new Date(p.createdAt).toLocaleDateString(), p.txRef, p.case?.title || p.description || 'Legal services',
+        `${p.currency} ${Number(p.amount).toLocaleString()}`,
+        `${p.currency} ${Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()}`,
+        `${p.currency} ${Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount)).toLocaleString()}`, p.status,
+      ]),
+      styles: { fontSize: 8 }, headStyles: { fillColor: [27, 77, 46] },
+    });
+    doc.save(`midlex-payment-history-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handlePrintSubmissionReceipt = (p: Payment, submission: NonNullable<Payment['submissions']>[number]) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    if (!printWindow) return alert('Please allow popups to print the receipt.');
+    const rows: Array<[string, string]> = [
+      ['Receipt reference', `${p.txRef}-${submission.id.slice(-8)}`], ['Invoice reference', p.txRef],
+      ['Client', p.client?.name || 'Client'], ['Email', p.client?.email || '—'], ['Matter', p.case?.title || p.description || 'Legal services'],
+      ['Payment amount', `${p.currency} ${Number(submission.amount).toLocaleString()}`],
+      ['Paid to', submission.account ? `${submission.account.bankName} · ${submission.account.accountName} · ${submission.account.accountNumber}` : 'Bank transfer'],
+      ['Approved', submission.verifiedAt ? new Date(submission.verifiedAt).toLocaleString() : 'Confirmed'],
+    ];
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char));
+    printWindow.document.write(`<!doctype html><html><head><title>Payment receipt</title><style>body{font:15px Arial,sans-serif;color:#183c2c;margin:48px}h1{margin-bottom:4px}small{color:#64748b}.box{border:1px solid #d7e2d8;border-radius:12px;padding:20px;margin-top:24px}p{padding:10px 0;border-bottom:1px solid #edf0ed;display:flex;justify-content:space-between;gap:20px}b{text-align:right}@media print{body{margin:20mm}}</style></head><body><h1>MIDLEX LLP</h1><small>Payment receipt · Approved transfer</small><div class="box">${rows.map(([label, value]) => `<p><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></p>`).join('')}</div><small>Generated ${escapeHtml(new Date().toLocaleString())}</small><script>window.onload=()=>window.print()</script></body></html>`);
+    printWindow.document.close();
+  };
+
   const startOpayCheckout = async (paymentId: string, provider = 'opay') => {
     setIsStartingCheckoutByPayment((p) => ({ ...p, [paymentId]: true }));
     try {
@@ -224,9 +267,13 @@ export default function PaymentsPage() {
     setIsUploadingByPayment((p) => ({ ...p, [paymentId]: true }));
     try {
       const formData = new FormData();
+      const payment = payments.find((item) => item.id === paymentId);
+      const selectedAccountId = payAccountByPayment[paymentId] || payment?.account?.id || '';
       formData.append('file', file);
+      formData.append('amount', payAmountByPayment[paymentId] || String(payment?.remainingAmount ?? payment?.amount ?? ''));
+      formData.append('accountId', selectedAccountId);
 
-      const res = await fetch(`${getApiBaseUrl()}/payments/${paymentId}/proof`, {
+      const res = await fetch(`${getApiBaseUrl()}/payments/${paymentId}/submissions`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
@@ -673,10 +720,21 @@ export default function PaymentsPage() {
   const renderCheckoutProofActions = (p: Payment) => {
     const isClientPending = user?.role === 'CLIENT' && p.status === 'PENDING';
     const method = selectedMethodByPayment[p.id] || 'opay';
-    const mainAccount = p.account?.currency === p.currency ? p.account : null;
+    const availableAccounts = accounts.filter((account) => account.currency === p.currency);
+    const selectedAccount = availableAccounts.find((account) => account.id === (payAccountByPayment[p.id] || p.account?.id)) || availableAccounts[0];
+    const remaining = Number(p.remainingAmount ?? (p.status === 'SUCCESS' ? 0 : p.amount));
+    const receiptPending = p.submissions?.some((submission) => submission.status === 'PENDING' && submission.proofUrl) || (Boolean(p.proofUrl) && p.status === 'PENDING');
 
     return (
       <div className="space-y-4">
+        {user?.role === 'CLIENT' && <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs"><span className="font-semibold text-primary">Invoice {p.currency} {Number(p.amount).toLocaleString()}</span><span className="ml-3 text-emerald-800">Paid {p.currency} {Number(p.paidAmount ?? (p.status === 'SUCCESS' ? p.amount : 0)).toLocaleString()}</span><span className="ml-3 text-amber-800">Remaining {p.currency} {remaining.toLocaleString()}</span></div>}
+        {!!p.submissions?.length && <div className="space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Transfer history</p>
+          {p.submissions.map((submission) => <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span>{p.currency} {Number(submission.amount).toLocaleString()} · {submission.account?.bankName || 'Bank transfer'} {submission.account?.accountNumber ? `(${submission.account.accountNumber})` : ''}</span>
+            <span className="flex items-center gap-2"><span className={submission.status === 'SUCCESS' ? 'font-semibold text-green-700' : submission.status === 'FAILED' ? 'font-semibold text-red-600' : 'font-semibold text-amber-700'}>{submission.status === 'SUCCESS' ? 'Approved' : submission.status === 'FAILED' ? 'Declined' : 'Awaiting review'}</span>{submission.status === 'SUCCESS' && <button onClick={() => handlePrintSubmissionReceipt(p, submission)} className="rounded-lg border border-primary px-2.5 py-1 font-semibold text-primary">Print receipt</button>}</span>
+          </div>)}
+        </div>}
         {/* Receipt View if uploaded */}
         <div>
           {p.proofUrl ? (
@@ -696,7 +754,7 @@ export default function PaymentsPage() {
         </div>
 
         {/* Tab selection for CLIENT with PENDING payment & no proof uploaded */}
-        {isClientPending && !p.proofUrl && (
+        {isClientPending && !receiptPending && remaining > 0 && (
           <div className="space-y-4 rounded-3xl border border-gray-100 bg-gray-50/50 p-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Select Payment Method</p>
             <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl">
@@ -726,42 +784,39 @@ export default function PaymentsPage() {
 
             {method === 'opay' ? (
               <div className="space-y-3 pt-1">
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Choose a configured payment provider. Payment is confirmed by the server after verification.
-                </p>
-                {canUseOpayCheckout(p) && (
-                  <button
-                    type="button"
-                    onClick={() => startOpayCheckout(p.id)}
-                    disabled={!!isStartingCheckoutByPayment[p.id] || !providerSetup?.opay?.configured}
-                    className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/10 hover:bg-primary/95 transition-all disabled:opacity-50"
-                  >
-                    {providerSetup?.opay?.configured ? 'Pay with OPay' : 'OPay · Setup required'}
-                  </button>
-                )}
-                <button type="button" disabled={!!isStartingCheckoutByPayment[p.id] || !providerSetup?.moniepoint?.configured} onClick={() => startOpayCheckout(p.id, 'monnify')} className="w-full rounded-2xl border border-primary px-4 py-3 text-sm font-bold text-primary disabled:opacity-50">{providerSetup?.moniepoint?.configured ? 'Moniepoint checkout · via Monnify' : 'Moniepoint · Setup required'}</button>
+                <p className="text-sm font-semibold text-primary">Online payment · Coming soon</p>
+                <p className="text-xs text-gray-500 leading-relaxed">OPay and Moniepoint checkout will be available once merchant gateway accounts are activated. You can pay by bank transfer now.</p>
+                <div className="grid grid-cols-2 gap-3">{([{ id: 'opay', name: 'OPay' }, { id: 'moniepoint', name: 'Moniepoint' }] as const).map((provider) => <button key={provider.id} type="button" onClick={() => setSelectedOnlineProviderByPayment((current) => ({ ...current, [p.id]: provider.id }))} className={`rounded-xl border p-3 text-left ${ (selectedOnlineProviderByPayment[p.id] || 'opay') === provider.id ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'}`}><span className="block text-sm font-bold text-primary">{provider.name}</span><span className="mt-1 block text-[10px] font-semibold text-amber-700">Coming soon</span></button>)}</div>
               </div>
             ) : (
               <div className="space-y-4 pt-1">
-                {mainAccount ? (
+                {selectedAccount ? (
                   <div className="space-y-3">
+                    <label className="block text-[11px] font-bold text-gray-500">Choose receiving account
+                      <select value={payAccountByPayment[p.id] || p.account?.id || selectedAccount.id} onChange={(event) => setPayAccountByPayment((current) => ({ ...current, [p.id]: event.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-primary">
+                        {availableAccounts.map((account) => <option key={account.id} value={account.id}>{account.bankName} · {account.accountNumber} · {account.accountName}</option>)}
+                      </select>
+                    </label>
+                    <label className="block text-[11px] font-bold text-gray-500">Amount to pay now (remaining {p.currency} {remaining.toLocaleString()})
+                      <input type="number" min="1" max={remaining} step="0.01" value={payAmountByPayment[p.id] ?? String(remaining)} onChange={(event) => setPayAmountByPayment((current) => ({ ...current, [p.id]: event.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-primary" />
+                    </label>
                     <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-400 font-medium">BANK NAME</span>
-                        <span className="font-bold text-primary">{mainAccount.bankName}</span>
+                        <span className="font-bold text-primary">{selectedAccount.bankName}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-400 font-medium">ACCOUNT NAME</span>
-                        <span className="font-bold text-primary">{mainAccount.accountName}</span>
+                        <span className="font-bold text-primary">{selectedAccount.accountName}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-2">
                         <span className="text-gray-400 font-medium">ACCOUNT NUMBER</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-secondary text-sm">{mainAccount.accountNumber}</span>
+                          <span className="font-mono font-bold text-secondary text-sm">{selectedAccount.accountNumber}</span>
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard.writeText(mainAccount.accountNumber);
+                              navigator.clipboard.writeText(selectedAccount.accountNumber);
                               alert('Account number copied to clipboard!');
                             }}
                             className="px-2 py-1 bg-secondary/10 hover:bg-secondary/20 text-secondary rounded-lg font-bold text-[10px] transition-colors"
@@ -774,7 +829,7 @@ export default function PaymentsPage() {
 
                     <div className="space-y-2 border-t border-gray-100 pt-3">
                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                        Upload Transfer Proof
+                        Upload Transfer Proof · files are removed after 7 days
                       </label>
                       <input
                         type="file"
@@ -855,6 +910,7 @@ export default function PaymentsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold text-primary">Financial History</h2>
         <div className="flex gap-3">
+          <button onClick={downloadPaymentHistoryPdf} className="rounded-2xl border border-primary px-5 py-4 font-bold text-primary">Download history PDF</button>
           {user?.role === 'ADMIN' && (
             <button
               onClick={() => setIsRequestModalOpen(true)}

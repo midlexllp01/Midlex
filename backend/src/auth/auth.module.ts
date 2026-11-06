@@ -38,5 +38,6 @@ import { WorkspaceModule } from '../workspace/workspace.module';
   ],
   providers: [AuthService, JwtStrategy, EmailService],
   controllers: [AuthController],
+  exports: [JwtModule],
 })
 export class AuthModule {}
