@@ -8,6 +8,7 @@ interface MonthPickerFilterProps {
   className?: string;
   totalCount?: number;
   countLabel?: string;
+  compact?: boolean;
 }
 
 export function getCurrentMonthStr(): string {
@@ -43,6 +44,7 @@ export default function MonthPickerFilter({
   className = '',
   totalCount,
   countLabel = 'items',
+  compact = false,
 }: MonthPickerFilterProps) {
   const currentMonth = getCurrentMonthStr();
 
@@ -77,6 +79,34 @@ export default function MonthPickerFilter({
     const monthStr = `${nextY}-${String(nextM).padStart(2, '0')}`;
     onChange(monthStr);
   };
+
+  if (compact) {
+    return (
+      <div className={`flex flex-col gap-4 rounded-2xl border border-[#dce6df] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between ${className}`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf1e7] text-[#23533e]">
+            <Calendar size={19} aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#688176]">Case period</p>
+            <p className="truncate text-sm font-semibold text-[#173e34]">{formatMonthDisplay(selectedMonth)}</p>
+          </div>
+          {typeof totalCount === 'number' && (
+            <span className="ml-1 rounded-full bg-[#eaf1e7] px-2.5 py-1 text-xs font-semibold text-[#23533e]">
+              {totalCount} {countLabel}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handlePrevMonth} aria-label="Previous month" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dce6df] text-[#23533e] hover:bg-[#f0f6ed]"><ChevronLeft size={17} /></button>
+          <input type="month" aria-label="Choose case month" value={selectedMonth === 'ALL' ? '' : selectedMonth} onChange={(event) => event.target.value && onChange(event.target.value)} className="h-10 rounded-xl border border-[#dce6df] bg-white px-3 text-sm font-medium text-[#173e34] outline-none focus-visible:border-[#1c5945]" />
+          <button type="button" onClick={handleNextMonth} aria-label="Next month" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dce6df] text-[#23533e] hover:bg-[#f0f6ed]"><ChevronRight size={17} /></button>
+          <button type="button" onClick={() => onChange(currentMonth)} className={`h-10 rounded-xl px-3 text-xs font-semibold ${selectedMonth === currentMonth ? 'bg-[#1c5945] text-white' : 'border border-[#dce6df] text-[#23533e] hover:bg-[#f0f6ed]'}`}>This month</button>
+          <button type="button" onClick={() => onChange('ALL')} className={`h-10 rounded-xl px-3 text-xs font-semibold ${selectedMonth === 'ALL' ? 'bg-[#1c5945] text-white' : 'border border-[#dce6df] text-[#23533e] hover:bg-[#f0f6ed]'}`}>All months</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm space-y-4 ${className}`}>

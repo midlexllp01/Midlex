@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardSearchBar from '@/components/Dashboard/DashboardSearchBar';
+import { Download, FileText, Landmark, UsersRound } from 'lucide-react';
 import {
   downloadDirectoryAsPdf,
   downloadDirectoryAsDocx,
@@ -79,7 +80,7 @@ const defaultCourts = [
   'HIGH COURT EHOR',
 ];
 
-import MonthPickerFilter, { getCurrentMonthStr, formatMonthDisplay, isItemInMonth } from '@/components/Dashboard/MonthPickerFilter';
+import MonthPickerFilter, { isItemInMonth } from '@/components/Dashboard/MonthPickerFilter';
 
 export default function CasesPage() {
   const { user } = useAuth();
@@ -87,9 +88,7 @@ export default function CasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
-  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthStr());
-  const [teamDirectoryMonth, setTeamDirectoryMonth] = useState<string>(getCurrentMonthStr());
-  const [teamDirectoryQuery, setTeamDirectoryQuery] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
 
   const [teams, setTeams] = useState<string[]>(defaultTeams);
   const [courts, setCourts] = useState<string[]>(defaultCourts);
@@ -100,7 +99,6 @@ export default function CasesPage() {
 
   const [isTeamsModalOpen, setIsTeamsModalOpen] = useState(false);
   const [isCourtsModalOpen, setIsCourtsModalOpen] = useState(false);
-  const [activeTeamDirectoryModal, setActiveTeamDirectoryModal] = useState<string | null>(null);
   const [newTeamInput, setNewTeamInput] = useState('');
   const [newCourtInput, setNewCourtInput] = useState('');
 
@@ -435,46 +433,50 @@ export default function CasesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-5 rounded-2xl border border-[#dce6df] bg-white p-5 md:flex-row md:items-center md:justify-between md:p-6">
         <div>
-          {isStaff && (
-            <span className="px-3 py-1 bg-secondary/10 border border-secondary text-secondary rounded-full text-xs font-bold uppercase tracking-widest">
-              OFFICIAL LITIGATION DIRECTORY
-            </span>
-          )}
-          <h2 className="text-3xl font-bold text-primary mt-2">
-            {isStaff ? 'MIDLEX CASE DIRECTORY' : 'My Cases'}
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#688176]">Legal workspace</p>
+          <h2 className="mt-1 text-2xl font-semibold text-[#173e34] md:text-3xl">
+            {isStaff ? 'Case directory' : 'My cases'}
           </h2>
+          <p className="mt-1 text-sm text-[#668076]">{isStaff ? 'Find matters, manage team and court directories, and export the cases in view.' : 'Find and follow your legal matters.'}</p>
         </div>
 
         {isStaff ? (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => setIsTeamsModalOpen(true)}
-              className="px-4 py-3 bg-secondary text-white font-bold rounded-2xl shadow-lg hover:bg-secondary/90 transition-all text-xs flex items-center gap-2 cursor-pointer"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1c5945] px-3.5 text-xs font-semibold text-white hover:bg-[#174b3b]"
             >
-              <span>{categoryFilter === 'GENERAL' ? 'General Retainer' : 'Litigation'} Teams ({teamsForWorkspace(teams, categoryFilter === 'GENERAL' ? 'GENERAL' : 'LITIGATION').length})</span>
+              <UsersRound size={15} aria-hidden="true" />
+              <span>{categoryFilter === 'GENERAL' ? 'General teams' : categoryFilter === 'LITIGATION' ? 'Litigation teams' : 'Teams'} ({categoryFilter === 'ALL' ? teams.length : teamsForWorkspace(teams, categoryFilter).length})</span>
             </button>
             <button
+              type="button"
               onClick={() => setIsCourtsModalOpen(true)}
-              className="px-4 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg hover:bg-primary/90 transition-all text-xs flex items-center gap-2"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#dce6df] px-3.5 text-xs font-semibold text-[#23533e] hover:bg-[#f0f6ed]"
             >
-              <span>Courts Directory ({courts.length})</span>
+              <Landmark size={15} aria-hidden="true" />
+              <span>Courts ({courts.length})</span>
             </button>
-            <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block" />
             <button
+              type="button"
               onClick={handleDownloadPdf}
-              className="px-4 py-3 bg-red-600 text-white font-bold rounded-2xl shadow-lg hover:bg-red-700 transition-all text-xs flex items-center gap-1.5"
-              title="Download Filtered Directory as PDF"
+              disabled={filteredCases.length === 0}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#dce6df] px-3.5 text-xs font-semibold text-[#23533e] hover:bg-[#f0f6ed] disabled:cursor-not-allowed disabled:opacity-40"
+              title="Download cases in view as PDF"
             >
-              <span>📄 Export PDF</span>
+              <Download size={15} aria-hidden="true" /><span>PDF</span>
             </button>
             <button
+              type="button"
               onClick={handleDownloadDocx}
-              className="px-4 py-3 bg-blue-600 text-white font-bold rounded-2xl shadow-lg hover:bg-blue-700 transition-all text-xs flex items-center gap-1.5"
-              title="Download Filtered Directory as Word DOCX"
+              disabled={filteredCases.length === 0}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#dce6df] px-3.5 text-xs font-semibold text-[#23533e] hover:bg-[#f0f6ed] disabled:cursor-not-allowed disabled:opacity-40"
+              title="Download cases in view as Word document"
             >
-              <span>📝 Export DOCX</span>
+              <FileText size={15} aria-hidden="true" /><span>Word</span>
             </button>
           </div>
         ) : (
@@ -493,72 +495,9 @@ export default function CasesPage() {
         selectedMonth={selectedMonth}
         onChange={setSelectedMonth}
         totalCount={filteredCases.length}
-        countLabel="cases in directory"
+        countLabel="cases"
+        compact
       />
-
-      {/* Very Bold Team & Department Case Directory Section */}
-      {isStaff && (
-        <div className="bg-slate-900 border-2 border-amber-400/40 rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-secondary text-white flex items-center justify-center font-black text-base shadow-md">
-                📂
-              </div>
-              <div>
-                <h3 className="text-sm font-black tracking-wider text-white uppercase">
-                  {categoryFilter === 'GENERAL'
-                    ? 'SUPER ADMIN GENERAL & PROPERTY REALTY DIRECTORIES'
-                    : user?.role === 'ADMIN'
-                    ? 'SUPER ADMIN LITIGATION & PRACTICE DIRECTORIES'
-                    : `${(user as any)?.litigationTeam || 'TEAM ANCHOR'} CASE DIRECTORY`}
-                </h3>
-                <p className="text-xs text-amber-200/80 font-medium">
-                  {categoryFilter === 'GENERAL'
-                    ? 'General Retainer Access: Midlex Royalty claims, property work, corporate advisory, and assigned team registers.'
-                    : user?.role === 'ADMIN'
-                    ? 'Super Admin Access: Open any practice team or court case directory register below.'
-                    : 'Counsel Access: Open your assigned litigation team case directory.'}
-                </p>
-              </div>
-            </div>
-            <span className="text-[10px] bg-amber-400/10 border border-amber-400/40 text-amber-300 px-3 py-1 rounded-full font-black uppercase tracking-widest self-start sm:self-auto">
-              {categoryFilter === 'GENERAL' ? '🏢 General & Property Practice' : user?.role === 'ADMIN' ? 'Super Admin Exclusive' : 'Litigation Team Counsel'}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {user?.role === 'ADMIN' ? (
-              teams.map((teamName) => (
-                <button
-                  key={teamName}
-                  onClick={() => setActiveTeamDirectoryModal(teamName)}
-                  className="px-6 py-3.5 bg-secondary text-white font-black rounded-2xl shadow-xl hover:bg-secondary/90 hover:scale-[1.02] transition-all text-xs tracking-wider uppercase border border-amber-300/40 flex items-center gap-2.5 group cursor-pointer"
-                >
-                  <span>📂 OPEN {teamName} CASE DIRECTORY</span>
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
-              ))
-            ) : (
-              (() => {
-                const lawyerTeam = (user as any)?.litigationTeam || 'TEAM ANCHOR';
-                return (
-                  <button
-                    onClick={() => setActiveTeamDirectoryModal(lawyerTeam)}
-                    className="px-7 py-4 bg-secondary text-white font-black rounded-2xl shadow-2xl hover:bg-secondary/90 hover:scale-[1.02] transition-all text-sm tracking-wider uppercase border-2 border-amber-300/50 flex items-center gap-3 group cursor-pointer"
-                  >
-                    <span>📂 OPEN {lawyerTeam} CASE DIRECTORY</span>
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </button>
-                );
-              })()
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Category Tabs: Litigation vs General Retainer */}
       <div className="flex flex-wrap border-b border-gray-200 gap-2">
@@ -794,7 +733,7 @@ export default function CasesPage() {
               {filteredCases.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-8 py-20 text-center text-gray-400 italic">
-                    No case directory entries matched your search.
+                    {selectedMonth !== 'ALL' ? 'No cases in this month. Select All months to see every recorded case.' : 'No cases match these filters yet.'}
                   </td>
                 </tr>
               )}
@@ -809,8 +748,8 @@ export default function CasesPage() {
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-primary">{categoryFilter === 'GENERAL' ? 'General Retainer' : 'Litigation'} Teams Directory</h3>
-                <p className="text-xs text-gray-400">Manage teams for this workspace separately</p>
+                <h3 className="text-xl font-bold text-primary">{categoryFilter === 'GENERAL' ? 'General' : categoryFilter === 'LITIGATION' ? 'Litigation' : 'All'} teams</h3>
+                <p className="text-xs text-gray-500">Manage the teams in this case directory.</p>
               </div>
               <button onClick={() => setIsTeamsModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
             </div>
@@ -832,7 +771,7 @@ export default function CasesPage() {
             </div>
 
             <div className="max-h-60 overflow-y-auto space-y-2">
-              {teamsForWorkspace(teams, categoryFilter === 'GENERAL' ? 'GENERAL' : 'LITIGATION').map((team) => (
+              {(categoryFilter === 'ALL' ? teams : teamsForWorkspace(teams, categoryFilter)).map((team) => (
                 <div key={team} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                   <span className="font-bold text-sm text-primary">{team}</span>
                   <button
@@ -1034,329 +973,6 @@ export default function CasesPage() {
         </div>
       )}
 
-      {/* Full Page Dedicated Team Directory Register */}
-      {activeTeamDirectoryModal && (
-        <div className="fixed inset-0 bg-[#f8fafc] z-50 overflow-y-auto p-4 md:p-8 lg:p-10 space-y-8 animate-in fade-in duration-200">
-          <div className="w-full max-w-[98%] mx-auto space-y-8 pb-20">
-            {/* Top Navigation & Header Bar */}
-            <div className="bg-white rounded-[32px] p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setActiveTeamDirectoryModal(null)}
-                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs transition-all flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  <span>Back to Cases</span>
-                </button>
-                <div className="w-12 h-12 rounded-2xl bg-secondary/10 border border-secondary text-secondary flex items-center justify-center text-2xl font-bold shrink-0">
-                  🛡️
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h1 className="text-2xl md:text-3xl font-black text-primary tracking-wide uppercase">
-                      {activeTeamDirectoryModal}&apos;S CASE DIRECTORY
-                    </h1>
-                    <span className="px-3 py-1 bg-amber-400/10 border border-amber-400/40 text-amber-800 text-xs font-black rounded-full uppercase tracking-wider">
-                      FULL PAGE REGISTER
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 font-medium mt-1">
-                    Official Dedicated Legal Directory Register for {activeTeamDirectoryModal}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 flex-wrap">
-                {(() => {
-                  const teamCases = cases.filter((c) => {
-                    const ov = overrides[c.id] || {};
-                    const teamName = ov.litigationTeam || c.litigationTeam || 'TEAM ANCHOR';
-                    if (teamName !== activeTeamDirectoryModal) return false;
-                    if (!isItemInMonth(c.createdAt, teamDirectoryMonth)) return false;
-                    if (teamDirectoryQuery.trim()) {
-                      const q = teamDirectoryQuery.trim().toLowerCase();
-                      const cleanId = c.id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                      const shortId = cleanId.length > 4 ? cleanId.slice(0, 4) : (cleanId || '102');
-                      const suitNo = ov.suitNumber || c.suitNumber || `SUIT NO: HCB/${shortId}/2026`;
-                      const courtName = ov.court || c.court || 'HIGH COURT BENIN CITY';
-                      const stage = ov.stage || 'PLEADINGS / PRE-TRIAL';
-                      const pendingTask = ov.pendingTask || 'Filing of Written Address & Witness Statements';
-                      const phones = [c.client?.phone, c.client?.secondaryPhone].filter(Boolean).join(', ');
-                      return [c.title, c.description, suitNo, courtName, stage, pendingTask, c.client?.name, c.client?.email, phones]
-                        .filter(Boolean)
-                        .some(val => String(val).toLowerCase().includes(q));
-                    }
-                    return true;
-                  });
-
-                  return (
-                    <>
-                      <button
-                        onClick={() => {
-                          const items = teamCases.map((c, index) => {
-                            const ov = overrides[c.id] || {};
-                            const cleanId = c.id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                            const shortId = cleanId.length > 4 ? cleanId.slice(0, 4) : (cleanId || '102');
-                            const phones = [c.client?.phone, c.client?.secondaryPhone].filter(Boolean).join(', ');
-                            return {
-                              sn: index + 1,
-                              title: c.title,
-                              suitNumber: ov.suitNumber || c.suitNumber || `SUIT NO: HCB/${shortId}/2026`,
-                              court: ov.court || c.court || 'HIGH COURT BENIN CITY',
-                              team: activeTeamDirectoryModal,
-                              clientName: c.client?.name || 'N/A',
-                              clientPhone: phones || 'N/A',
-                              clientEmail: c.client?.email || 'N/A',
-                              stage: ov.stage || 'PLEADINGS / PRE-TRIAL',
-                              pendingTask: ov.pendingTask || 'Filing of Written Address & Witness Statements',
-                              status: c.status,
-                            };
-                          });
-                          downloadDirectoryAsPdf(items, {
-                            query: teamDirectoryQuery,
-                            courtFilter: 'ALL',
-                            teamFilter: activeTeamDirectoryModal,
-                            totalRecords: items.length,
-                          });
-                        }}
-                        className="px-5 py-3 bg-red-600 text-white font-bold rounded-2xl text-xs flex items-center gap-2 hover:bg-red-700 transition-all shadow-md"
-                      >
-                        📄 Export PDF
-                      </button>
-                      <button
-                        onClick={() => {
-                          const items = teamCases.map((c, index) => {
-                            const ov = overrides[c.id] || {};
-                            const cleanId = c.id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                            const shortId = cleanId.length > 4 ? cleanId.slice(0, 4) : (cleanId || '102');
-                            const phones = [c.client?.phone, c.client?.secondaryPhone].filter(Boolean).join(', ');
-                            return {
-                              sn: index + 1,
-                              title: c.title,
-                              suitNumber: ov.suitNumber || c.suitNumber || `SUIT NO: HCB/${shortId}/2026`,
-                              court: ov.court || c.court || 'HIGH COURT BENIN CITY',
-                              team: activeTeamDirectoryModal,
-                              clientName: c.client?.name || 'N/A',
-                              clientPhone: phones || 'N/A',
-                              clientEmail: c.client?.email || 'N/A',
-                              stage: ov.stage || 'PLEADINGS / PRE-TRIAL',
-                              pendingTask: ov.pendingTask || 'Filing of Written Address & Witness Statements',
-                              status: c.status,
-                            };
-                          });
-                          downloadDirectoryAsDocx(items, {
-                            query: teamDirectoryQuery,
-                            courtFilter: 'ALL',
-                            teamFilter: activeTeamDirectoryModal,
-                            totalRecords: items.length,
-                          });
-                        }}
-                        className="px-5 py-3 bg-blue-600 text-white font-bold rounded-2xl text-xs flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md"
-                      >
-                        📝 Export DOCX
-                      </button>
-                    </>
-                  );
-                })()}
-
-                <button
-                  onClick={() => setActiveTeamDirectoryModal(null)}
-                  className="px-5 py-3 bg-gray-900 text-white font-bold rounded-2xl text-xs hover:bg-gray-800 transition-all"
-                >
-                  Close Directory ✕
-                </button>
-              </div>
-            </div>
-
-            {(() => {
-              const teamCases = cases.filter((c) => {
-                const ov = overrides[c.id] || {};
-                const teamName = ov.litigationTeam || c.litigationTeam || 'TEAM ANCHOR';
-                if (teamName !== activeTeamDirectoryModal) return false;
-
-                if (!isItemInMonth(c.createdAt, teamDirectoryMonth)) {
-                  return false;
-                }
-
-                if (teamDirectoryQuery.trim()) {
-                  const q = teamDirectoryQuery.trim().toLowerCase();
-                  const cleanId = c.id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                  const shortId = cleanId.length > 4 ? cleanId.slice(0, 4) : (cleanId || '102');
-                  const suitNo = ov.suitNumber || c.suitNumber || `SUIT NO: HCB/${shortId}/2026`;
-                  const courtName = ov.court || c.court || 'HIGH COURT BENIN CITY';
-                  const stage = ov.stage || 'PLEADINGS / PRE-TRIAL';
-                  const pendingTask = ov.pendingTask || 'Filing of Written Address & Witness Statements';
-                  const phones = [c.client?.phone, c.client?.secondaryPhone].filter(Boolean).join(', ');
-
-                  return [c.title, c.description, suitNo, courtName, stage, pendingTask, c.client?.name, c.client?.email, phones]
-                    .filter(Boolean)
-                    .some(val => String(val).toLowerCase().includes(q));
-                }
-
-                return true;
-              });
-
-              return (
-                <div className="space-y-6">
-                  {/* Date / Month Picker Filter Component */}
-                  <MonthPickerFilter
-                    selectedMonth={teamDirectoryMonth}
-                    onChange={setTeamDirectoryMonth}
-                    totalCount={teamCases.length}
-                    countLabel={`matters in ${activeTeamDirectoryModal}`}
-                  />
-
-                  {/* Search Bar inside Full Page Team Directory */}
-                  <DashboardSearchBar
-                    value={teamDirectoryQuery}
-                    onChange={setTeamDirectoryQuery}
-                    placeholder={`Search ${activeTeamDirectoryModal} matters by Suit No, Title, Court, Client...`}
-                    count={teamCases.length}
-                    countLabel="registered matters"
-                  />
-
-                  {/* Main Full Page Table matching User Screenshot */}
-                  <div className="bg-white rounded-[40px] border border-gray-200 overflow-hidden shadow-md">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-primary text-white">
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">S/N</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">CASES TITLE</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">SUIT NO.</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">COURT</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">CLIENT DETAILS</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">STAGE</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest">PENDING TASK</th>
-                            <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-right">ACTION</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {teamCases.map((c, index) => {
-                            const ov = overrides[c.id] || {};
-                            const suitNo = ov.suitNumber || c.suitNumber || '';
-                            const courtName = ov.court || c.court || '';
-                            const stage = ov.stage || 'PLEADINGS / PRE-TRIAL';
-                            const pendingTask = ov.pendingTask || 'Filing of Written Address & Witness Statements';
-                            const phones = [c.client?.phone, c.client?.secondaryPhone].filter(Boolean).join(', ');
-
-                            return (
-                              <tr key={c.id} className="hover:bg-gray-50/50 transition-all">
-                                <td className="px-6 py-5 font-bold text-primary text-sm">{index + 1}</td>
-                                <td className="px-6 py-5">
-                                  <div className="font-bold text-primary text-base">{c.title}</div>
-                                </td>
-                                <td className="px-6 py-5">
-                                  {suitNo ? (
-                                    <span className="px-3 py-1.5 bg-amber-50 text-amber-900 border border-amber-200 rounded-lg text-xs font-bold">
-                                      {suitNo.startsWith('SUIT') ? suitNo : `SUIT NO: ${suitNo}`}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400 font-normal italic text-xs">—</span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-5 text-xs text-gray-700 font-medium">
-                                  {courtName || <span className="text-gray-400 font-normal italic text-xs">—</span>}
-                                </td>
-                                <td className="px-6 py-5 text-xs font-medium text-gray-800">
-                                  <div className="font-bold text-primary text-sm">{c.client?.name || 'N/A'}</div>
-                                  <div className="text-xs text-gray-500 mt-0.5">
-                                    📞 {phones || 'No Phone Registered'}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    ✉️ {c.client?.email || 'No Email Registered'}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-5">
-                                  <span className="px-3 py-1.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl text-xs font-extrabold uppercase tracking-wide">
-                                    {stage}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-5 text-xs font-semibold text-amber-900">
-                                  <div className="flex items-center gap-1.5 bg-amber-50/80 border border-amber-200 px-3.5 py-2 rounded-xl">
-                                    <span className="text-amber-600">📌</span>
-                                    <span>{pendingTask}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-5 text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    {isStaff && (
-                                      <button
-                                        onClick={() => {
-                                          const ov = overrides[c.id] || {};
-                                          const suitNo = ov.suitNumber || c.suitNumber || '';
-                                          const courtName = ov.court || c.court || '';
-                                          const teamName = ov.litigationTeam || c.litigationTeam || activeTeamDirectoryModal || '';
-                                          setEditingCase(c);
-                                          setEditTitle(c.title || '');
-                                          setEditSuitNo(suitNo);
-                                          setEditCourt(courtName);
-                                          setEditTeam(teamName);
-                                          setEditStage(ov.stage || 'PLEADINGS / PRE-TRIAL');
-                                          setEditPendingTask(ov.pendingTask || 'Filing of Written Address & Witness Statements');
-                                        }}
-                                        className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold rounded-xl text-xs transition-all flex items-center gap-1"
-                                        title="Edit Case Title, Suit No., Court, Stage & Pending Task"
-                                      >
-                                        ✏️ Edit
-                                      </button>
-                                    )}
-                                    <Link 
-                                      href={`/dashboard/cases/${c.id}`}
-                                      className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-xs hover:bg-primary/90 transition-all shadow-md inline-flex items-center gap-1"
-                                    >
-                                      <span>View</span>
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                                      </svg>
-                                    </Link>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-
-                          {teamCases.length === 0 && (
-                            <tr>
-                              <td colSpan={8} className="px-8 py-20 text-center">
-                                <div className="space-y-3">
-                                  <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl font-bold">
-                                    📂
-                                  </div>
-                                  <h4 className="font-bold text-primary text-base uppercase">
-                                    NO REGISTERED MATTERS FOUND FOR THIS MONTH
-                                  </h4>
-                                  <p className="text-xs text-gray-400 max-w-md mx-auto">
-                                    No legal matters match your selected month ({formatMonthDisplay(teamDirectoryMonth)}) and filter under {activeTeamDirectoryModal}. Try picking another month with the date timepicker above or click &quot;All Months&quot;.
-                                  </p>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <span className="text-xs font-bold text-gray-500">
-                {activeTeamDirectoryModal} • Full Page Directory Register
-              </span>
-              <button
-                onClick={() => setActiveTeamDirectoryModal(null)}
-                className="px-8 py-3 bg-[#C5A059] hover:bg-[#b08e4b] text-white font-bold rounded-2xl text-xs transition-all shadow-lg"
-              >
-                Close Directory
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
