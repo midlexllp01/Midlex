@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -24,6 +26,7 @@ export default function LoginClient() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [clientDepartment, setClientDepartment] = useState<ClientPracticeDept | null>(null);
   const { login } = useAuth();
 
@@ -96,6 +99,35 @@ export default function LoginClient() {
       clearTimeout(wakeUpTimer);
       setIsSubmitting(false);
       setIsWakingUp(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsGoogleSubmitting(true);
+    try {
+      if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY || !process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
+          !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || !process.env.NEXT_PUBLIC_FIREBASE_APP_ID) {
+        throw new Error("Google sign-in is not configured yet. Please contact Midlex support.");
+      }
+      const firebaseApp = getApps().length ? getApp() : initializeApp({
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      });
+      const result = await signInWithPopup(getAuth(firebaseApp), new GoogleAuthProvider());
+      const idToken = await result.user.getIdToken();
+      const data = await apiFetch("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ idToken }),
+      });
+      completeLogin(data.access_token, data.user);
+    } catch (err: any) {
+      const message = String(err?.message || "Google sign-in failed.");
+      setError(message.includes("auth/popup-closed-by-user") ? "Google sign-in was cancelled." : message);
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -272,6 +304,32 @@ export default function LoginClient() {
               Connecting to secure server... If the service was idle, it may take a few moments to initialize.
             </p>
           )}
+
+          <div className="flex items-center gap-3 text-xs text-gray-500" aria-hidden="true">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span>or continue with Google</span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleSubmitting || isSubmitting}
+            className="w-full min-h-12 rounded-xl border border-gray-300 bg-white text-gray-900 font-semibold flex items-center justify-center gap-3 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+          >
+            {isGoogleSubmitting ? (
+              <span>Connecting to Google…</span>
+            ) : (
+              <>
+                <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" transform="translate(0 4) scale(1 .83)" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.74 7.18l7.64 5.93c4.46-4.12 7.14-10.2 7.14-17.58Z" />
+                  <path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a24 24 0 0 0 0 21.56l7.98-6.19Z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.87l-7.64-5.93c-2.13 1.43-4.85 2.28-8.27 2.28-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+                </svg>
+                Continue with Google
+              </>
+            )}
+          </button>
         </form>
 
         <div className="mt-8 text-center text-gray-600">

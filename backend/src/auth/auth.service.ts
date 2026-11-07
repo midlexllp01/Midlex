@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash, randomBytes } from 'crypto';
+import { getAuth } from 'firebase-admin/auth';
 
 @Injectable()
 export class AuthService {
@@ -69,6 +70,29 @@ export class AuthService {
         litigationTeam: user.litigationTeam || null,
       },
     };
+  }
+
+  async googleLogin(idToken: string) {
+    if (typeof idToken !== 'string' || idToken.length < 100 || idToken.length > 12000) {
+      throw new UnauthorizedException('Invalid Google sign-in token');
+    }
+    try {
+      this.prisma.ensureFirebaseApp();
+      const decoded = await getAuth().verifyIdToken(idToken, true);
+      const email = typeof decoded.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+      if (!decoded.email_verified || !email) throw new UnauthorizedException('Use a verified Google email address');
+
+      // Google sign-in is for existing Midlex accounts. It never creates or changes accounts.
+      const user = await this.usersService.findOneByEmail(email);
+      if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException('No active Midlex account exists for this Google email');
+      return this.login(user);
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException) throw error;
+      if (error?.code === 'app/no-app' || error?.code === 'app/invalid-credential') {
+        throw new ServiceUnavailableException('Google sign-in is not configured on the identity service');
+      }
+      throw new UnauthorizedException('Google sign-in could not be verified');
+    }
   }
 
   async createPasswordReset(email: string) {

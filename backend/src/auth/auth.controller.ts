@@ -27,6 +27,12 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @Post('google')
+  async googleLogin(@Body() body: any) {
+    const result = await this.authService.googleLogin(body?.idToken);
+    return result;
+  }
+
   @Post('signup')
   async signup(@Body() body: any) {
     if (!body.email || !body.password || !body.name) {
