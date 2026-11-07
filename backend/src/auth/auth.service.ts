@@ -87,7 +87,12 @@ export class AuthService {
 
       // Google sign-in is for existing Midlex accounts. It never creates or changes accounts.
       const user = await this.usersService.findOneByEmail(email);
-      if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException('No active Midlex account exists for this Google email');
+      // The legacy midlex_store database does not apply Prisma schema defaults,
+      // so older clients can have no status field. Treat that as active and block
+      // only accounts that are explicitly marked deactivated.
+      if (!user || String(user.status || 'ACTIVE').trim().toUpperCase() === 'DEACTIVATED') {
+        throw new UnauthorizedException('No active Midlex account exists for this Google email');
+      }
       return this.login(user);
     } catch (error: any) {
       if (error instanceof UnauthorizedException) throw error;

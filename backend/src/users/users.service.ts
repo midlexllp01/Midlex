@@ -45,6 +45,9 @@ export class UsersService {
           email,
           name,
           password: hashedPassword,
+          status: typeof data.status === 'string' && data.status.trim()
+            ? data.status.trim().toUpperCase()
+            : 'ACTIVE',
         },
       });
     } catch (err: any) {
