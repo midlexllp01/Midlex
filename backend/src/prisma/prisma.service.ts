@@ -302,6 +302,11 @@ export class PrismaService implements OnModuleInit {
     const serviceAccount = this.readServiceAccount();
     return initializeApp({
       credential: serviceAccount ? cert(serviceAccount) : applicationDefault(),
+      // Render needs an explicit project ID when it has no Google metadata server.
+      projectId: process.env.FIREBASE_PROJECT_ID ||
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+        serviceAccount?.project_id ||
+        'midlex-llp',
       storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     });
   }

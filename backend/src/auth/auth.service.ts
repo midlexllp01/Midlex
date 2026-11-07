@@ -78,7 +78,10 @@ export class AuthService {
     }
     try {
       this.prisma.ensureFirebaseApp();
-      const decoded = await getAuth().verifyIdToken(idToken, true);
+      // Signature verification uses Google's public keys. Revocation lookups require
+      // service-account access, which is not available in every Render environment;
+      // active/deactivated Midlex accounts are still checked against our database below.
+      const decoded = await getAuth().verifyIdToken(idToken);
       const email = typeof decoded.email === 'string' ? decoded.email.trim().toLowerCase() : '';
       if (!decoded.email_verified || !email) throw new UnauthorizedException('Use a verified Google email address');
 
