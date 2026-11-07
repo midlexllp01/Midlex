@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Headers,
@@ -75,6 +76,28 @@ export class PaymentsController {
       description: body.description,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
       createdBy: { id: req.user.id, role: req.user.role },
+    });
+  }
+
+  @Patch(':id/request')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  updateRequest(@Param('id') id: string, @Body() body: any, @Request() req: any) {
+    return this.paymentsService.updatePaymentRequest(id, {
+      amount: body.amount,
+      accountId: body.accountId,
+      description: body.description,
+      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+    }, { id: req.user.id, role: req.user.role });
+  }
+
+  @Delete(':id/request')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  deleteRequest(@Param('id') id: string, @Request() req: any) {
+    return this.paymentsService.deletePaymentRequest(id, {
+      id: req.user.id,
+      role: req.user.role,
     });
   }
 

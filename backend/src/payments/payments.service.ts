@@ -427,6 +427,94 @@ export class PaymentsService implements OnModuleInit {
     return payment;
   }
 
+  private async getEditablePaymentRequest(id: string, role: Role) {
+    if (role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admins can edit or delete payment requests');
+    }
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: { case: true, client: true, account: true },
+    });
+    if (!payment) throw new NotFoundException('Payment request not found');
+
+    const gatewayAttempt = payment as typeof payment & {
+      opayReference?: string | null;
+      opayOrderNo?: string | null;
+      gatewayReference?: string | null;
+    };
+    if (
+      payment.status !== PaymentStatus.PENDING ||
+      payment.proofUrl ||
+      payment.proofSubmittedAt ||
+      payment.verifiedAt ||
+      gatewayAttempt.opayReference ||
+      gatewayAttempt.opayOrderNo ||
+      gatewayAttempt.gatewayReference
+    ) {
+      throw new BadRequestException(
+        'Only unpaid requests with no submitted receipt or checkout attempt can be changed or deleted',
+      );
+    }
+    return payment;
+  }
+
+  async updatePaymentRequest(
+    id: string,
+    data: { amount: number; accountId?: string | null; description?: string | null; dueDate?: Date | null },
+    actor: { id: string; role: Role },
+  ) {
+    const payment = await this.getEditablePaymentRequest(id, actor.role);
+    if (!Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0) {
+      throw new BadRequestException('Enter a valid amount greater than zero');
+    }
+
+    const accountId = data.accountId || null;
+    if (accountId) {
+      const account = await this.prisma.paymentAccount.findUnique({
+        where: { id: accountId },
+        select: { id: true, isActive: true, currency: true },
+      });
+      if (!account || !account.isActive) throw new BadRequestException('Select an active payment account');
+      if (account.currency !== payment.currency) {
+        throw new BadRequestException('Receiving account currency must match the payment request');
+      }
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id },
+      data: {
+        amount: Number(data.amount),
+        accountId,
+        description: data.description?.trim() || null,
+        dueDate: data.dueDate || null,
+      },
+      include: { case: true, client: true, account: true },
+    });
+    void this.notificationsService.create({
+      recipientId: payment.clientId,
+      title: 'Payment request updated',
+      message: `The payment request for ${payment.case?.title || 'your case'} was updated. New amount: ${payment.currency} ${Number(updated.amount).toLocaleString()}.`,
+      link: '/dashboard/payments',
+      type: 'PAYMENT_REQUEST',
+      createdById: actor.id,
+    }).catch((error) => console.warn('[Payments] Could not notify client of payment update:', error?.message || error));
+    return updated;
+  }
+
+  async deletePaymentRequest(id: string, actor: { id: string; role: Role }) {
+    const payment = await this.getEditablePaymentRequest(id, actor.role);
+    await this.prisma.payment.delete({ where: { id } });
+    void this.notificationsService.create({
+      recipientId: payment.clientId,
+      title: 'Payment request withdrawn',
+      message: `The payment request for ${payment.case?.title || 'your case'} (${payment.currency} ${Number(payment.amount).toLocaleString()}) was withdrawn by the firm.`,
+      link: '/dashboard/payments',
+      type: 'PAYMENT_REQUEST',
+      createdById: actor.id,
+    }).catch((error) => console.warn('[Payments] Could not notify client of payment withdrawal:', error?.message || error));
+    return { success: true };
+  }
+
   async createOpayCheckoutForPayment(params: {
     paymentId: string;
     clientId: string;
