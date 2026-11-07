@@ -826,6 +826,30 @@ export class PaymentsService implements OnModuleInit {
     return remoteFile.publicUrl();
   }
 
+  private async storePaymentProof(file: Express.Multer.File, baseUrl: string) {
+    // Prefer Cloudinary for receipts; Firebase Storage can be unavailable when
+    // the owning Google Cloud project has billing disabled.
+    if (this.isCloudinaryConfigured()) {
+      try {
+        const uploaded = await this.cloudinary.uploadFile(file);
+        const url = 'secure_url' in uploaded ? uploaded.secure_url : undefined;
+        if (url) return url;
+      } catch {
+        console.warn('[Payments] Cloudinary receipt upload failed; trying fallback storage.');
+      }
+    }
+
+    try {
+      const firebaseUrl = await this.saveProofToFirebase(file);
+      if (firebaseUrl) return firebaseUrl;
+    } catch {
+      // Do not log the raw Google SDK error: it may include authorization headers.
+      console.warn('[Payments] Firebase receipt upload failed; trying fallback storage.');
+    }
+
+    return this.saveProofToLocal({ file, baseUrl });
+  }
+
   async submitProof(params: {
     paymentId: string;
     clientId: string;
@@ -841,14 +865,7 @@ export class PaymentsService implements OnModuleInit {
     if (payment.status !== PaymentStatus.PENDING)
       throw new BadRequestException('Payment is not pending');
 
-    const url =
-      (await this.saveProofToFirebase(params.file)) ||
-      (this.isCloudinaryConfigured()
-        ? (await this.cloudinary.uploadFile(params.file)).secure_url
-        : await this.saveProofToLocal({
-            file: params.file,
-            baseUrl: params.baseUrl,
-          }));
+    const url = await this.storePaymentProof(params.file, params.baseUrl);
 
     const updated = await this.prisma.payment.update({
       where: { id: params.paymentId },
@@ -896,10 +913,7 @@ export class PaymentsService implements OnModuleInit {
     if (!account || !account.isActive || account.currency !== payment.currency) {
       throw new BadRequestException('Select an active receiving account in the invoice currency');
     }
-    const url = (await this.saveProofToFirebase(params.file)) ||
-      (this.isCloudinaryConfigured()
-        ? (await this.cloudinary.uploadFile(params.file)).secure_url
-        : await this.saveProofToLocal({ file: params.file, baseUrl: params.baseUrl }));
+    const url = await this.storePaymentProof(params.file, params.baseUrl);
     const submission = await this.prisma.paymentSubmission.create({
       data: {
         paymentId: payment.id,

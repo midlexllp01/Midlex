@@ -10,6 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, bodyParser: false });
   const captureRawBody = (req: any, _res: any, buffer: Buffer) => { req.rawBody = Buffer.from(buffer); };
   app.use('/workspace/backup/restore', express.json({ limit: '20mb', verify: captureRawBody }));
+  app.use('/uploads/payments', express.static(join(process.cwd(), 'uploads', 'payments')));
   app.use(express.json({ limit: '1mb', verify: captureRawBody }));
   app.use(express.urlencoded({ extended: true, limit: '1mb', verify: captureRawBody }));
   const allowedOrigins = [
