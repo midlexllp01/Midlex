@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { mountSubsystems } from './subsystems/index.js';
+import { startBackendKeepAliveCron } from './common/keepalive-cron.js';
 import express from 'express';
 
 async function bootstrap() {
@@ -72,6 +73,7 @@ async function bootstrap() {
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`[NestApplication] Server listening on http://0.0.0.0:${port}`);
+  startBackendKeepAliveCron(10);
 }
 bootstrap().catch((err) => {
   console.error('[startup] Backend failed to start', err);

@@ -1,0 +1,29 @@
+name: Midlex Backend Keep-Alive Cron (Every 10 Mins)
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render idle spin-down
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Ping All Render Backends
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping All 7 Midlex Backends
+        run: |
+          URLS=(
+            "https://midlex-project-backend.onrender.com/health"
+            "https://midlex-backend.onrender.com/health"
+            "https://midlex-new.onrender.com/health"
+            "https://midlex-hrms.onrender.com/api/health"
+            "https://midlex-cbt-backend.onrender.com"
+            "https://midlex-ai-new.onrender.com"
+            "https://midlex-realty.onrender.com/health"
+          )
+          for url in "${URLS[@]}"; do
+            echo "--- Pinging $url ---"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 35 "$url" || echo "FAILED")
+            echo "Result: $HTTP_CODE"
+          done
